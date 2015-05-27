@@ -100,11 +100,17 @@ define Device/smartrg-sr400ac
   IMAGE/trx := trx-serial
 endef
 
+define Device/acx-m500
+  IMAGES := trx
+  IMAGE/trx := trx-serial
+endef
+
 TARGET_DEVICES += \
 	asus-rt-ac56u asus-rt-ac68u asus-rt-ac87u asus-rt-n18u \
 	buffalo-wzr-1750dhp buffalo-wzr-600dhp2 buffalo-wzr-900dhp \
 	buffalo-wxr-1900dhp \
 	netgear-r6250 netgear-r6300-v2 netgear-r8000 \
-	smartrg-sr400ac
+	smartrg-sr400ac \
+	acx-m500
 
 $(eval $(call BuildImage))
