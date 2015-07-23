@@ -37,6 +37,7 @@ platform_check_image() {
 	d105 | \
 	dap-1350 | \
 	dcs-930 | \
+	dcs-930l-b1 | \
 	dir-300-b1 | \
 	dir-300-b7 | \
 	dir-320-b1 | \
@@ -53,6 +54,7 @@ platform_check_image() {
 	fonera20n | \
 	freestation5 | \
 	firewrt |\
+	pbr-m1 |\
 	hg255d | \
 	hlk-rm04 | \
 	ht-tm02 | \
@@ -69,13 +71,17 @@ platform_check_image() {
 	mpr-a2 | \
 	mr-102n | \
 	mzk-w300nh2 | \
+	mzk-dp150n | \
 	nbg-419n | \
 	nw718 | \
 	omni-emb | \
 	omni-emb-hpm | \
 	omni-plug | \
+	olinuxino-rt5350f | \
+	olinuxino-rt5350f-evb | \
 	psr-680w | \
 	px4885 | \
+	re6500 | \
 	rp-n53 | \
 	rt-g32-b1 | \
 	rt-n10-plus | \
@@ -95,6 +101,7 @@ platform_check_image() {
 	w306r-v20 |\
 	w502u |\
 	whr-g300n |\
+	whr-300hp2 |\
 	whr-600d |\
 	whr-1166d |\
 	wsr-600 |\
@@ -110,6 +117,7 @@ platform_check_image() {
 	wr6202 |\
 	wr8305rt |\
 	wrtnode |\
+	oy-0001 |\
 	wt1520 |\
 	wt3020 |\
 	x5 |\
