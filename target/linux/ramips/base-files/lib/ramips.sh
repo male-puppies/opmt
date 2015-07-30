@@ -100,6 +100,9 @@ ramips_board_detect() {
 	*"Firefly FireWRT")
 		name="firewrt"
 		;;
+	*"Openwrt puppies")
+		name="Puppies"
+		;;
 	*"CY-SWR1100")
 		name="cy-swr1100"
 		;;

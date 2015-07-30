@@ -131,6 +131,7 @@ ramips_setup_interfaces()
 	dir-320-b1 | \
 	dir-615-h1 | \
 	firewrt | \
+	puppies | \
 	pbr-m1 | \
 	hlk-rm04 | \
 	mt7621 | \
