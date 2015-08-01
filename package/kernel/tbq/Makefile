@@ -17,7 +17,7 @@ define KernelPackage/tbq
   SUBMENU:=Other modules
   TITLE:=tbq qos driver
   FILES:=$(PKG_BUILD_DIR)/tbq.ko
-  AUTOLOAD:=$(call AutoLoad,30,tbq,1)
+  AUTOLOAD:=$(call AutoProbe,tbq)
   KCONFIG:=
 endef
 
