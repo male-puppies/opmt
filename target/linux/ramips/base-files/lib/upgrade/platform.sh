@@ -54,6 +54,7 @@ platform_check_image() {
 	fonera20n | \
 	freestation5 | \
 	firewrt |\
+	puppies |\
 	pbr-m1 |\
 	hg255d | \
 	hlk-rm04 | \

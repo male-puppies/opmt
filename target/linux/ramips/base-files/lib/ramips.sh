@@ -101,7 +101,7 @@ ramips_board_detect() {
 		name="firewrt"
 		;;
 	*"Openwrt puppies")
-		name="Puppies"
+		name="puppies"
 		;;
 	*"CY-SWR1100")
 		name="cy-swr1100"
