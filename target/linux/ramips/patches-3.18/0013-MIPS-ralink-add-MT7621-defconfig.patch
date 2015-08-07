@@ -39,7 +39,6 @@ Signed-off-by: John Crispin <blogic@openwrt.org>
 +# CONFIG_COMPACTION is not set
 +# CONFIG_CROSS_MEMORY_ATTACH is not set
 +# CONFIG_SECCOMP is not set
-+CONFIG_HZ_100=y
 +CONFIG_CMDLINE_BOOL=y
 +CONFIG_CMDLINE="rootfstype=squashfs,jffs2"
 +# CONFIG_CORE_DUMP_DEFAULT_ELF_HEADERS is not set
