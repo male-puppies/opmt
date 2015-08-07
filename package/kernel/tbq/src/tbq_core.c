@@ -1212,6 +1212,11 @@ void tbq_on_flow_free(struct tbq_flow_track *tf)
 	spin_unlock_bh(&tbq.lock);
 }
 
+static void tbq_nf_queue_drop(struct net *net, struct nf_hook_ops *hook)
+{
+	//TODO: flush queue skbs
+}
+
 static struct nos_track_event tbq_nos_track_event = {
 	.on_user_free = tbq_on_user_free,
 	.on_flow_free = tbq_on_flow_free,
@@ -1219,6 +1224,7 @@ static struct nos_track_event tbq_nos_track_event = {
 
 static const struct nf_queue_handler tbq_nf_queue = {
 	.outfn	= tbq_enqueue,
+	.nf_hook_drop = tbq_nf_queue_drop,
 };
 
 static struct nf_hook_ops tbq_nf_hook_ops[] = {
@@ -1227,7 +1233,7 @@ static struct nf_hook_ops tbq_nf_hook_ops[] = {
 		.owner = THIS_MODULE,
 		.pf = NFPROTO_IPV4,
 		.hooknum = NF_INET_FORWARD,
-		.priority = NF_IP_PRI_NAT_DST + 1,
+		.priority = NF_IP_PRI_LAST,
 	},
 };
 
