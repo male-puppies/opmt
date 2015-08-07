@@ -20,7 +20,7 @@ set network.globals.ula_prefix='auto'
 EOF
 }
 
-next_vlan=3
+next_vlan=6
 generate_network() {
 	local vlan
 
@@ -33,7 +33,7 @@ generate_network() {
 	[ -n "$ifname" ] || return
 	[ "$create_vlan" -eq 1 ] && case $1 in
 	lan) vlan=1;;
-	wan) vlan=2;;
+	wan) vlan=5;;
 	*)
 		vlan=$next_vlan
 		next_vlan=$((next_vlan + 1))
@@ -53,7 +53,7 @@ EOF
 	lan) uci -q batch <<EOF
 set network.$1.type='bridge'
 set network.$1.proto='static'
-set network.$1.ipaddr='192.168.1.1'
+set network.$1.ipaddr='172.16.0.1'
 set network.$1.netmask='255.255.255.0'
 set network.$1.ip6assign='60'
 EOF
@@ -61,9 +61,6 @@ EOF
 	wan) uci -q batch <<EOF
 set network.$1.proto='dhcp'
 delete network.wan6
-set network.wan6='interface'
-set network.wan6.ifname='$ifname'
-set network.wan6.proto='dhcpv6'
 EOF
 		;;
 	esac
