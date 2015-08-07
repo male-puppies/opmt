@@ -85,15 +85,15 @@ static inline int tbq_get_packet_dir(
 {
 	int lan_in, lan_out;
 
-#ifdef CONFIG_BRIDGE_NETFILTER
-	if (skb->nf_bridge) {
-		in = skb->nf_bridge->physindev;
-		out = skb->nf_bridge->physoutdev;
-	}
-#endif
+// #ifdef CONFIG_BRIDGE_NETFILTER
+// 	if (skb->nf_bridge) {
+// 		in = skb->nf_bridge->physindev;
+// 		out = skb->nf_bridge->physoutdev;
+// 	}
+// #endif
 
-	lan_in = strncmp(in->name, "lan", 3) == 0;
-	lan_out = strncmp(out->name, "lan", 3) == 0;
+	lan_in = strncmp(in->name, "br", 2) == 0;
+	lan_out = strncmp(out->name, "br", 2) == 0;
 
 	if (lan_in) {
 		if (lan_out)
@@ -647,6 +647,10 @@ static unsigned int tbq_nf_hook(
 			spin_lock_bh(&tbq.lock);
 			ret = tbq_filter_packet(skb, nos, pkt_dir);
 			spin_unlock_bh(&tbq.lock);
+		} else {
+			if(net_ratelimit()) {
+				printk("x");
+			}
 		}
 	}
 	rcu_read_unlock();
