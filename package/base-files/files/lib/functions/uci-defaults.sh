@@ -257,7 +257,7 @@ set network.lan.ifname='$ifname'
 set network.lan.force_link=1
 set network.lan.type='bridge'
 set network.lan.proto='static'
-set network.lan.ipaddr='172.16.0.1'
+set network.lan.ipaddr='192.168.0.1'
 set network.lan.netmask='255.255.255.0'
 set network.lan.ip6assign='60'
 EOF

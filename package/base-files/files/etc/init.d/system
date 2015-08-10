@@ -7,10 +7,10 @@ USE_PROCD=1
 validate_system_section()
 {
 	uci_validate_section system system "${1}" \
-		'hostname:string:OpenWrt' \
+		'hostname:string:Router-AC' \
 		'conloglevel:uinteger' \
 		'buffersize:uinteger' \
-		'timezone:string:UTC' \
+		'timezone:string:CST' \
 		'zonename:string'
 }
 
