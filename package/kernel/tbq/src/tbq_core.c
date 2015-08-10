@@ -729,7 +729,10 @@ static void tbq_backlog_drr_schedule(
 
 	if (tb->drr_deficit < 0) {
 		tb->drr_deficit += tb->weight << TBQ_DRR_QUANTUM_SHIFT;
-		BUG_ON(tb->drr_deficit < 0);
+		//BUG_ON(tb->drr_deficit < 0);
+		if (tb->drr_deficit < 0 && net_ratelimit()) {
+			TBQ_WARN("WARR: too length pkt: %d\n", pkt_len);
+		}
 		list_move_tail(&tb->list, &tb->tc->backlog.units);
 	}
 }

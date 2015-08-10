@@ -21,7 +21,7 @@
 #include <linux/nos_track.h>
 
 //#define TBQ_DEBUG_CONTROL_PPS
-#define TBQ_LOG_LEVEL			3
+#define TBQ_LOG_LEVEL			2
 #define TBQ_TRACE_FILTER		0
 #define TBQ_TRACE_TIMER			0
 #define TBQ_TIMER_INTERVAL		1
