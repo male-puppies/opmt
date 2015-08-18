@@ -52,6 +52,15 @@ ucidef_set_interface_lan() {
 	json_select ..
 }
 
+ucidef_set_interface_wan_idx() {
+	local wan_if=$1
+	local idx=$2
+
+	json_select_object network
+	_ucidef_set_interface wan$idx $wan_if
+	json_select ..
+}
+
 ucidef_set_interfaces_lan_wan() {
 	local lan_if=$1
 	local wan_if=$2
