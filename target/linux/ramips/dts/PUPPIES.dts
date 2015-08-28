@@ -44,7 +44,12 @@
 
 				partition@50000 {
 					label = "firmware";
-					reg = <0x50000 0xfb0000>;
+					reg = <0x50000 0xeb0000>;
+				};
+
+				partition@f00000 {
+					label = "conf-backup";
+					reg = <0xf00000 0x100000>;
 				};
 
 			};
