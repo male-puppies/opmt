@@ -51,7 +51,6 @@
 					label = "conf-backup";
 					reg = <0xf00000 0x100000>;
 				};
-
 			};
 		};
 	};
