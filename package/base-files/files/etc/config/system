@@ -1,6 +1,9 @@
 config system
-	option hostname	MW-R200
-	option timezone	CST-8
+	option hostname MW-R200
+	option timezone CST-8
+	option zonename Asia/Shanghai
+	option cronloglevel 8
+	option conloglevel 6
 
 config timeserver ntp
 	list server	pool.ntp.org
