@@ -15,11 +15,7 @@ elif [ "$SEEN" -gt 5 ]
 then
 	echo "FACTORY RESET" > /dev/console
 	
-	kill watchdog.sh 
-	ps | grep essential/main.lua  | grep -v grep | awk '{print $1}' | xargs kill
-	rm -rf /tmp/backup/* 
-	sync 
-	
+	/ugw/script/reset_data.sh	
 	jffs2reset -y && reboot -f &
 fi
 
