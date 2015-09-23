@@ -1,5 +1,5 @@
 config system
-	option hostname A100
+	option hostname WX100
 	option timezone CST-8
 	option zonename Asia/Shanghai
 	option cronloglevel 8
