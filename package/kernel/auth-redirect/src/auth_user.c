@@ -23,8 +23,8 @@ struct auth_user_set {
 
 static struct timer_list s_watchdog_tm;	/*tm for forcing free timeout user*/
 static uint32_t s_watchdog_intval = WATCHDOG_EXPIRED_INTVAL;	/*unit is microseconds*/
-static uint32_t s_user_off_intval = 2 * WATCHDOG_EXPIRED_INTVAL;
-static uint32_t s_user_timeout_intval = 4 * WATCHDOG_EXPIRED_INTVAL;
+static uint32_t s_user_off_intval = (2 * WATCHDOG_EXPIRED_INTVAL);
+static uint32_t s_user_timeout_intval = (4 * WATCHDOG_EXPIRED_INTVAL);
 static struct auth_user_hash s_user_hash;
 static struct auth_user_set s_user_set;
 
@@ -372,19 +372,22 @@ static void auth_user_watchdog_fn(unsigned long arg)
 	for (slot_idx = 0; slot_idx < AUTH_USER_HASH_SIZE; slot_idx++) {
 		hslot = &s_user_hash.slots[slot_idx];
 		hlist_for_each_entry_safe(user, node, hslot, user_node) {
-			if ((user->info.jf + timeout_jf) >= now_jf) {
+			if (user->info.jf < (now_jf - timeout_jf)) {
 				#if DEBUG_ENABLE
 					free_total++;
-					AUTH_DEBUG("del user:%pI4 for timeout[last_jf:%llu, timeout_jf:%llu, now_jf:%llu].\n", 
+					AUTH_DEBUG("del user:%pI4h for timeout[last_jf:%llu, timeout_jf:%llu, now_jf:%llu].\n", 
 								&user->info.ipv4, user->info.jf, timeout_jf, now_jf);
 				#endif
 				auth_user_del(slot_idx, user);
 				user = NULL;
 			}
-			else if ((user->info.jf + off_jf) >= now_jf) {
+			else if (user->info.jf < (now_jf - off_jf)) {
 				#if DEBUG_ENABLE
-					AUTH_DEBUG("user offline:%pI4 for timeout[last_jf:%llu, off_jf:%llu, now_jf:%llu].\n", 
+				if (user->info.status == USER_ONLINE)
+				{
+					AUTH_DEBUG("user offline:%pI4h for timeout[last_jf:%llu, off_jf:%llu, now_jf:%llu].\n", 
 								&user->info.ipv4, user->info.jf, off_jf, now_jf);
+				}
 				#endif
 				user->info.status = USER_OFFLINE;
 			}
