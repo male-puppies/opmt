@@ -4,6 +4,14 @@
 #include "auth_ioc.h"
 #include "auth_comm.h"
 
+#define NIPQUAD_FMT "%u.%u.%u.%u"
+#define NIPQUAD(addr) \
+ ((unsigned char *)&addr)[0], \
+ ((unsigned char *)&addr)[1], \
+ ((unsigned char *)&addr)[2], \
+ ((unsigned char *)&addr)[3]
+
+
 struct user_node {
 	struct hlist_node user_node;
 	struct user_info info;
@@ -18,7 +26,7 @@ int auth_user_fini(void);
 struct  user_node *auth_user_get(const unsigned char *mac);
 struct user_node *auth_user_add(struct user_info *user_info);
 
-int update_watchdog_tm(uint32_t mecs_intval);
+int watchdog_tm_update(uint32_t msecs_intval);
 int auth_user_status(struct user_node *user);
 void display_all_user(void);
 void display_user(struct user_node *user);

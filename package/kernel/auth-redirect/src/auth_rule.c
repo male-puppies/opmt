@@ -1,6 +1,7 @@
 #include "auth_comm.h"
 #include "auth_ioc.h"
 #include "auth_rule.h"
+#include "auth_user.h"
 
 /*auth ip rule node*/
 struct auth_ip_rule_node {
@@ -52,7 +53,8 @@ static void display_auth_ip_rule(struct auth_ip_rule *ip_rule)
 	AUTH_DEBUG("PRIORITY of ip rule: %d.\n", ip_rule->priority);
 	AUTH_DEBUG("ENABLE of ip rule: %d.\n", ip_rule->enable);
 	for (i = 0; i < ip_rule->nc_ip_range; i++) {
-		AUTH_DEBUG("[min:%pI4h --> max:%pI4h].\n", &ip_rule->ip_ranges[i].min, &ip_rule->ip_ranges[i].max);
+		AUTH_DEBUG("[min:%pI4h  --> max:%pI4h].\n", &ip_rule->ip_ranges[i].min, &ip_rule->ip_ranges[i].max);
+		AUTH_DEBUG("[min:%u  --> max:%u].\n", ip_rule->ip_ranges[i].min, ip_rule->ip_ranges[i].max);
 	}
 	AUTH_DEBUG("--------IP_RULE END---------\n");
 }
@@ -186,6 +188,8 @@ static int auth_options_check(struct auth_options *options)
 
 int set_auth_options(struct auth_options *options)
 {
+	#define MINUTE_TO_SECOND	60		/*minute to second*/
+	#define SECOND_TO_MS		1000	/*second to millisecond*/
 	struct auth_options *dst_options = &s_auth_cfg.auth_option;
 	spin_lock_bh(&s_auth_cfg.lock);
 	if (auth_options_check(options) != 0) {
@@ -199,6 +203,8 @@ int set_auth_options(struct auth_options *options)
 	memcpy(dst_options->redirect_title, options->redirect_title, REDIRECT_TITLE_MAX - 1);
 	display_auth_options();
 	spin_unlock_bh(&s_auth_cfg.lock);
+	watchdog_tm_update(dst_options->user_check_intval * MINUTE_TO_SECOND * SECOND_TO_MS);
+	#undef MINUTE_TO_SECOND
 	return 0;
 }
 
@@ -487,7 +493,9 @@ int flow_dir_check(const char *inname, const char *outname)
 		goto OUT;
 	}
 	check_res = FLOW_NEED_CHECK;
+
 OUT:
+	//AUTH_DEBUG("flow_dir_check res=%u. in:%s, out:%s\n", check_res, inname, outname);
 	spin_unlock_bh(&s_auth_cfg.lock);
 	return check_res;
 }
@@ -540,7 +548,7 @@ int auth_rule_check(uint32_t ipv4)
 		break;
 	}
 	spin_unlock_bh(&s_auth_cfg.lock);
-	AUTH_DEBUG("HOST:%pI4h, AUTH_RES:%d.\n", &ipv4, auth_res);
+	//AUTH_DEBUG("HOST:%pI4h %u, AUTH_RES:%d.\n", &ipv4, ipv4,auth_res);
 	return auth_res;
 }
 

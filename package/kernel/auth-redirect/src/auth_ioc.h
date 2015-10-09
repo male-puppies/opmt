@@ -92,12 +92,15 @@ enum USER_STATUS {
 #define USER_STATUS_NUM (INVALID_USER_STATUS + 1)
 #define USER_STATUS_STR_LEN 16
 
+#pragma pack(4)
 struct user_info {
 	uint32_t ipv4;
 	uint32_t status;
 	uint64_t jf;
 	unsigned char mac[ETH_ALEN];
+	unsigned char reserved[2];
 };
+#pragma pack()
 
 struct user_stat_assist {
 	uint16_t more;		/*more user stat info*/
