@@ -335,7 +335,7 @@ int update_auth_rules(struct ioc_auth_ip_rule *ip_rules, uint32_t n_rule)
 		}
 		add_auth_rule(ip_rule_nodes[i]);
 		offset = cur_rule->nc_ip_range * sizeof(struct ip_range) + sizeof(struct ioc_auth_ip_rule);
-		cur_rule = (struct auth_ip_rule*)((void*)cur_rule + offset);
+		cur_rule = (struct ioc_auth_ip_rule*)((void*)cur_rule + offset);
 		AUTH_DEBUG("newt_rule:%p. offset:%x\n", cur_rule, offset);
 	}
 

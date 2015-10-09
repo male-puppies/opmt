@@ -374,32 +374,32 @@ static struct nf_hook_ops redirect_nf_hook_ops[] = {
 };
 
 
-#include <linux/delay.h>
-static void auth_user_add_test(void)
-{
-	#define AUTH_USER_COUNT 5
-	int i = 0;
-	struct user_node *user = NULL;
-	struct user_info info[AUTH_USER_COUNT] = {
-		{2886729808U, 0, {0}},
-		{2886729809U, 0, {0}},
-		{2886729810U, 0, {0}},
-		{2886729811U, 0, {0}},
-		{2886729812U, 0, {0}}
-	};
+// #include <linux/delay.h>
+// static void auth_user_add_test(void)
+// {
+// 	#define AUTH_USER_COUNT 5
+// 	int i = 0;
+// 	struct user_node *user = NULL;
+// 	struct user_info info[AUTH_USER_COUNT] = {
+// 		{2886729808U, 0, {0}},
+// 		{2886729809U, 0, {0}},
+// 		{2886729810U, 0, {0}},
+// 		{2886729811U, 0, {0}},
+// 		{2886729812U, 0, {0}}
+// 	};
 
-	for (i = 0; i < AUTH_USER_COUNT; i++) {
-		info[i].mac[0] = 172;
-		info[i].mac[1] = 96;
-		info[i].mac[2] = 128;
-		info[i].mac[3] = 64;
-		info[i].mac[4] = 32;
-		info[i].mac[5] = 16 + i;
-		user = auth_user_add(&info[i]);
-	}
-	display_all_user();
-	#undef AUTH_USER_COUNT
-}
+// 	for (i = 0; i < AUTH_USER_COUNT; i++) {
+// 		info[i].mac[0] = 172;
+// 		info[i].mac[1] = 96;
+// 		info[i].mac[2] = 128;
+// 		info[i].mac[3] = 64;
+// 		info[i].mac[4] = 32;
+// 		info[i].mac[5] = 16 + i;
+// 		user = auth_user_add(&info[i]);
+// 	}
+// 	display_all_user();
+// 	#undef AUTH_USER_COUNT
+// }
 
 
 static int __init auth_init(void)
@@ -427,7 +427,6 @@ static int __init auth_init(void)
 		AUTH_ERROR("nf_register_hook failed: %d\n", ret);
 		return ret;
 	}
-	auth_user_add_test();
 	AUTH_INFO("auth_init success.\n");
 	return ret;
 }
