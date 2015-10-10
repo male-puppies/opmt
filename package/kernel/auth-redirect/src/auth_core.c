@@ -28,7 +28,7 @@
 #define DRV_DESC	"auth driver"
 
 
-#define NET_IPQUAD(addr) \
+#define NIPQUAD(addr) \
 	((unsigned char *)&addr)[0], \
 	((unsigned char *)&addr)[1], \
 	((unsigned char *)&addr)[2], \
@@ -95,7 +95,7 @@ static int do_auth_redirect(struct sk_buff *skb, const struct net_device *dev)
 	snprintf(payload, sizeof(payload), REDIRECT_URL, 
 			old_eth->h_source[0], old_eth->h_source[1], old_eth->h_source[2],
 			old_eth->h_source[3], old_eth->h_source[4], old_eth->h_source[5],
-			NET_IPQUAD(old_iph->saddr));
+			NIPQUAD(old_iph->saddr));
 	AUTH_DEBUG("REDIRECT_URL:%s\n", payload);
 	header_len = sizeof(struct ethhdr) + sizeof(struct iphdr) + sizeof(struct tcphdr);
 	nskb = alloc_skb(header_len + payload_len, GFP_ATOMIC);
@@ -243,12 +243,11 @@ static unsigned int packet_process(struct sk_buff* skb, const struct net_device 
 	}
 
 	memcpy(info.mac, eth_header->h_source, ETH_ALEN);
-	info.ipv4 = htonl(ip_header->saddr); 
+	info.ipv4 = ntohl(ip_header->saddr); 
 	user = auth_user_get(info.mac);
 	if (user) {
 		if (auth_user_status(user) == USER_ONLINE) {
 			update_auth_user_active_tm(user);
-			AUTH_DEBUG("user online.\n");
 			return NF_ACCEPT;
 		}
 		/*status changing from online to offline, need recheck auth rules.*/
@@ -261,10 +260,8 @@ static unsigned int packet_process(struct sk_buff* skb, const struct net_device 
 			if (user == NULL) {
 				return NF_DROP;
 			}
-			//display_all_user();
 		}
 	}
-	AUTH_DEBUG("RULE_CHECK_RES:%u\n", check_ret);
 	switch(check_ret) {
 		case AUTH_RULE_PASS:
 			return NF_ACCEPT;
@@ -301,9 +298,15 @@ static unsigned int redirect_nf_hook(
 	if (get_auth_cfg_status() != AUTH_CONF_AVAILABLE) {
 		return NF_ACCEPT;
 	}
+	
+	/* Internet Protocol packet	 need check*/
+	if (skb->protocol != htons(ETH_P_IP)) {
+		return NF_ACCEPT;
+	}
+
 	/*TCP, UDP, ICMP, supported.*/
 	iph = ip_hdr(skb);
-	if (iph && (iph->protocol != IPPROTO_TCP) 
+	if ((iph->protocol != IPPROTO_TCP) 
 		&& (iph->protocol != IPPROTO_UDP) 
 		&& (iph->protocol != IPPROTO_ICMP)) {
 		return NF_ACCEPT;
@@ -322,24 +325,41 @@ static unsigned int redirect_nf_hook(
 		return NF_ACCEPT;
 	}
 
-	if (iph->protocol == IPPROTO_TCP) {
-		tcph = (struct tcphdr *)(skb->data + (iph->ihl << 2));
-		if (tcph->syn || tcph->fin || tcph->rst) {
-	 		return NF_ACCEPT;
-		}
-		tcphdr_len = tcph->doff * 4;
-		tcp_data = (char*)tcph + tcphdr_len;
-		tcpdata_len = ntohs(iph->tot_len) - iph->ihl * 4 - tcphdr_len; 
-		if (tcpdata_len < 4 || strncasecmp(tcp_data, "GET ", 4) != 0)
+	switch (iph->protocol) {
+		case IPPROTO_TCP:
 		{
-			return NF_ACCEPT;
-		}
-	}
+			tcph = (struct tcphdr *)(skb->data + (iph->ihl << 2));
+			if (tcph->syn || tcph->fin || tcph->rst) {
+		 		return NF_ACCEPT;
+			}
 
-	if (iph->protocol == IPPROTO_UDP) {
-		udph = (struct udphdr *)(skb->data + (iph->ihl << 2));
-		if (ntohs(udph->dest) == 53)
-			return NF_ACCEPT; 	/* DNS包放通 */ 
+			tcphdr_len = tcph->doff * 4;
+			tcp_data = (char*)tcph + tcphdr_len;
+			tcpdata_len = ntohs(iph->tot_len) - iph->ihl * 4 - tcphdr_len; 
+			if (tcpdata_len < 4 || strncasecmp(tcp_data, "GET ", 4) != 0) {
+				return NF_ACCEPT;
+			}
+
+			break;
+		}
+
+		case IPPROTO_UDP:
+		{
+			udph = (struct udphdr *)(skb->data + (iph->ihl << 2));
+			if (ntohs(udph->dest) == 53) {
+				return NF_ACCEPT; 	/* DNS PASS*/ 
+			}
+			if (ntohs(udph->dest) == 67) {
+				return NF_ACCEPT;	/*in fact, DHCP is multicast packet*/
+			}
+			break;
+		}
+
+		case IPPROTO_ICMP:
+		{
+			break;
+		}
+
 	}
 
 	/*这里如果不线性化检查, OUTPUT抓取的数据包, 数据区可能为空.*/

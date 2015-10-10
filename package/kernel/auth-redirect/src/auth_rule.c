@@ -130,6 +130,9 @@ int add_auth_rule(struct auth_ip_rule_node *ip_rule_node)
 }
 
 
+/*
+*Notice, All number data between user space and kernel are host order.
+*/
 int copy_auth_ip_rule_to_node(struct auth_ip_rule_node *rule_node, 
 										struct ioc_auth_ip_rule *ip_rule)
 {
@@ -445,7 +448,7 @@ OUT:
 
 
 /**********************************auth_realted**********************************/
-/*0-->unmatch, 1-->match*/
+/*FLOW_NEED_CHECK, FLOW_NONEED_CHECK*/
 int flow_dir_check(const char *inname, const char *outname) 
 {
 	int in_match = 0, out_match = 0, check_res = FLOW_NONEED_CHECK;
@@ -461,7 +464,7 @@ int flow_dir_check(const char *inname, const char *outname)
 		check_res =  FLOW_NONEED_CHECK;
 		goto OUT;
 	}
-	/*LAN-->LAN-->...>WAN-->WAN*/
+	/*if_list layout:LAN-->LAN-->...>WAN-->WAN*/
 	list_for_each(cur, &s_auth_cfg.if_list) {
 		cur_node = list_entry(cur, struct if_info_node, if_node);
 		if_info = &cur_node->if_info;
@@ -495,7 +498,9 @@ int flow_dir_check(const char *inname, const char *outname)
 	check_res = FLOW_NEED_CHECK;
 
 OUT:
-	//AUTH_DEBUG("flow_dir_check res=%u. in:%s, out:%s\n", check_res, inname, outname);
+#if DEBUG_ENABLE
+	AUTH_DEBUG("check_res=%s (in:%s, out:%s)\n", (check_res ? "need check" : "no need check"), inname, outname);
+#endif
 	spin_unlock_bh(&s_auth_cfg.lock);
 	return check_res;
 }
@@ -548,7 +553,14 @@ int auth_rule_check(uint32_t ipv4)
 		break;
 	}
 	spin_unlock_bh(&s_auth_cfg.lock);
-	//AUTH_DEBUG("HOST:%pI4h %u, AUTH_RES:%d.\n", &ipv4, ipv4,auth_res);
+#if DEBUG_ENABLE
+	if (matched) {
+		AUTH_DEBUG("STA(%pI4h) match rule, check_res=%u.\n",  &ipv4, auth_res);
+	}
+	else {
+		AUTH_DEBUG("STA(%pI4h) unmatch any rule, pass in default.\n",  &ipv4);
+	}
+#endif
 	return auth_res;
 }
 

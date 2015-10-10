@@ -58,7 +58,7 @@ static struct user_node *user_create(const struct user_info *user_info)
 	struct user_node *user = NULL;
 	user = AUTH_NEW(struct user_node);
 	if (user == NULL) {
-		AUTH_ERROR("no memory.\n");
+		AUTH_ERROR("create user failed for no memory.\n");
 		return user;
 	}
 	memset(user, 0, sizeof(struct user_node));
@@ -249,7 +249,7 @@ struct user_node *auth_user_add(struct user_info *user_info)
 
 	user = auth_user_get(user_info->mac);
 	if (user) {
-		AUTH_INFO("user[%02x:%02x:%02x:%02x:%02x:%02x] already existence.\n", 
+		AUTH_DEBUG("user[%02x:%02x:%02x:%02x:%02x:%02x] already existence.\n", 
 					user_info->mac[0], user_info->mac[1], user_info->mac[2],
 					user_info->mac[3], user_info->mac[4], user_info->mac[5]);
 		return user;

@@ -10,7 +10,7 @@
 #include <linux/rwlock.h>
 
 
-#define DEBUG_ENABLE 1
+#define DEBUG_ENABLE 1		/*DEBUG PRINT SWITCH*/
 
 #define AUTH_DEBUG(format,...)   do { printk(KERN_DEBUG "%s "format, __func__, ##__VA_ARGS__); } while(0)
 #define AUTH_INFO(format,...)    do { printk(KERN_INFO "%s "format, __func__, ##__VA_ARGS__); } while(0)
