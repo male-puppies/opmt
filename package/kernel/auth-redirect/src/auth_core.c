@@ -96,7 +96,6 @@ static int do_auth_redirect(struct sk_buff *skb, const struct net_device *dev)
 			old_eth->h_source[0], old_eth->h_source[1], old_eth->h_source[2],
 			old_eth->h_source[3], old_eth->h_source[4], old_eth->h_source[5],
 			NIPQUAD(old_iph->saddr));
-	AUTH_DEBUG("REDIRECT_URL:%s\n", payload);
 	header_len = sizeof(struct ethhdr) + sizeof(struct iphdr) + sizeof(struct tcphdr);
 	nskb = alloc_skb(header_len + payload_len, GFP_ATOMIC);
 	if (!nskb) {
