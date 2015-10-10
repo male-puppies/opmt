@@ -144,8 +144,9 @@ static int do_auth_redirect(struct sk_buff *skb, const struct net_device *dev)
 	new_eth->h_proto = htons(ETH_P_IP);
 	nskb->dev = (struct net_device *)dev;
 	ret = dev_queue_xmit(nskb);
+#if FREQ_DEBUG_ENABLE
 	AUTH_DEBUG("dev_queue_xmit ret = %d.\n", ret);
-
+#endif
 	#undef REDIRECT_URL
 	#undef REDIRECT_URL_SIZE
 	return ret;
@@ -208,7 +209,9 @@ static int do_auth_reset(struct sk_buff *skb, const struct net_device *dev)
 	
 	nskb->dev = (struct net_device *)dev;
 	ret = dev_queue_xmit(nskb);
+#if FREQ_DEBUG_ENABLE
 	AUTH_DEBUG("dev_queue_xmit ret = %d.\n", ret);
+#endif
 	return 0;
 }
 

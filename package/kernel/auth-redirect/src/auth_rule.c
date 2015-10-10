@@ -498,9 +498,11 @@ int flow_dir_check(const char *inname, const char *outname)
 	check_res = FLOW_NEED_CHECK;
 
 OUT:
-#if DEBUG_ENABLE
-	AUTH_DEBUG("check_res=%s (in:%s, out:%s)\n", (check_res ? "need check" : "no need check"), inname, outname);
-#endif
+// #if DEBUG_ENABLE
+// 	if (check_res == FLOW_NEED_CHECK) {
+// 		AUTH_DEBUG("check_res=%s (in:%s, out:%s)\n", ("need check"), inname, outname);
+// 	}
+// #endif
 	spin_unlock_bh(&s_auth_cfg.lock);
 	return check_res;
 }
