@@ -68,6 +68,7 @@ struct auth_options {
 	uint32_t	user_check_intval;	/*unit: seconds*/
 	char 		redirect_url[REDIRECT_URL_MAX];	
 	char		redirect_title[REDIRECT_TITLE_MAX];
+	uint32_t    bypass_enable;
 };
 
 enum ARG_TYPE_E {

@@ -29,6 +29,7 @@ int auth_rule_check(uint32_t ipv4);
 int flow_dir_check(const char *inname, const char *outname);
 
 int get_auth_cfg_status(void);
+int get_auth_option_bypass(void);
 void auth_cfg_enable(void);
 void auth_cfg_disable(void);
 #endif

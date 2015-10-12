@@ -301,6 +301,10 @@ static unsigned int redirect_nf_hook(
 		return NF_ACCEPT;
 	}
 	
+	if (get_auth_option_bypass()) {
+		return NF_ACCEPT;
+	}
+
 	/* Internet Protocol packet	 need check*/
 	if (skb->protocol != htons(ETH_P_IP)) {
 		return NF_ACCEPT;

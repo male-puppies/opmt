@@ -170,6 +170,7 @@ static void display_auth_options(void)
 	AUTH_DEBUG("USER_CHECK_INTVAL: %u.\n", options->user_check_intval);
 	AUTH_DEBUG("REDIRECT_URL: %s.\n", options->redirect_url);
 	AUTH_DEBUG("REDIRECT_TITLE: %s.\n", options->redirect_title);
+	AUTH_DEBUG("BYPASS_ENABLE:%u\n", options->bypass_enable);
 	AUTH_DEBUG("--------AUTH_OPTIONS END---------\n");
 }
 
@@ -204,6 +205,7 @@ int set_auth_options(struct auth_options *options)
 	memcpy(dst_options->redirect_url, options->redirect_url, REDIRECT_URL_MAX - 1);
 	memset(dst_options->redirect_title, 0, REDIRECT_TITLE_MAX);
 	memcpy(dst_options->redirect_title, options->redirect_title, REDIRECT_TITLE_MAX - 1);
+	dst_options->bypass_enable = options->bypass_enable;
 	display_auth_options();
 	spin_unlock_bh(&s_auth_cfg.lock);
 	watchdog_tm_update(dst_options->user_check_intval * MINUTE_TO_SECOND * SECOND_TO_MS);
@@ -570,6 +572,12 @@ int auth_rule_check(uint32_t ipv4)
 int get_auth_cfg_status(void)
 {
 	return s_auth_cfg.status;
+}
+
+
+int get_auth_option_bypass()
+{
+	return s_auth_cfg.auth_option.bypass_enable;
 }
 
 
