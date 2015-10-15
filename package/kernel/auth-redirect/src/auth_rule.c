@@ -531,7 +531,7 @@ int auth_rule_check(uint32_t ipv4)
 		ip_rule = &cur_node->ip_rule;
 		/*ip in range*/
 		for (i = 0; i < ip_rule->nc_ip_range; i++) {
-			if (ipv4 <= ip_rule->ip_ranges[i].min || ipv4 >= ip_rule->ip_ranges[i].max) {
+			if (ipv4 < ip_rule->ip_ranges[i].min || ipv4 > ip_rule->ip_ranges[i].max) {
 				continue;
 			}
 			matched = 1;
