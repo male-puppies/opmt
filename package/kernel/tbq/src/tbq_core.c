@@ -649,7 +649,7 @@ static unsigned int tbq_nf_hook(
 			spin_unlock_bh(&tbq.lock);
 		} else {
 			if(net_ratelimit()) {
-				printk("x");
+				printk("x"); 
 			}
 		}
 	}
