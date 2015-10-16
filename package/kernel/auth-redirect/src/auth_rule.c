@@ -561,10 +561,14 @@ int auth_rule_check(uint32_t ipv4)
 	if (matched) {
 		AUTH_DEBUG("STA(%pI4h) match rule, check_res=%u.\n",  &ipv4, auth_res);
 	}
+	#if FREQ_DEBUG_ENABLE
 	else {
 		AUTH_DEBUG("STA(%pI4h) unmatch any rule, pass in default.\n",  &ipv4);
 	}
+	#endif
 #endif
+
+
 	return auth_res;
 }
 
