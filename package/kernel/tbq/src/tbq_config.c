@@ -513,6 +513,32 @@ fail:
 	return -1;
 }
 
+static void init_iface(struct tbq_config *config, const nx_json *j_opt, struct tbq_iface *iface)
+{
+	
+	const char *p = j_opt->text_value, *e = j_opt->text_value + strlen(j_opt->text_value);
+		
+	BUG_ON(iface->cur != 0);
+		
+	while (p <= e) {
+		const char *p2 = strchr(p, '\t');
+		if (!p2 || p2 > e || p2 - p <= 0)
+			break;
+		
+		BUG_ON(iface->cur > TBQ_MAX_IFACE_COUNT || p2 - p >= TBQ_MAX_IFNAME_SIZE);
+		memcpy(iface->ifname[iface->cur], p, p2 - p);
+		iface->cur++;
+		p = p2 + 1;
+	}
+	
+	{
+		int i = 0; 
+		for (; i < iface->cur; i++) {
+			printk("%d--%s--\n", i, iface->ifname[i]);
+		}
+	}
+}
+
 static int tbq_config_init(struct tbq_config *config, const nx_json *js)
 {
 	const nx_json *j_opt;
@@ -522,6 +548,26 @@ static int tbq_config_init(struct tbq_config *config, const nx_json *js)
 	if (js->type != NX_JSON_OBJECT) {
 		TBQ_ERROR("config is not object\n");
 		goto fail;
+	}
+	
+	j_opt = nx_json_get(js, "LAN");
+	if (j_opt->type == NX_JSON_NULL) {
+		memcpy(&config->lan, &tbq.config.lan, sizeof(struct tbq_iface));
+	} else if (j_opt->type != NX_JSON_STRING) {
+		TBQ_ERROR("LAN is not string\n");
+		goto fail;
+	} else {
+		init_iface(config, j_opt, &config->lan); 
+	}
+	
+	j_opt = nx_json_get(js, "WAN");
+	if (j_opt->type == NX_JSON_NULL) {
+		memcpy(&config->wan, &tbq.config.wan, sizeof(struct tbq_iface));
+	} else if (j_opt->type != NX_JSON_STRING) {
+		TBQ_ERROR("WAN is not string\n");
+		goto fail;
+	} else {
+		init_iface(config, j_opt, &config->wan);
 	}
 
 	j_opt = nx_json_get(js, "Rules");
@@ -536,7 +582,7 @@ static int tbq_config_init(struct tbq_config *config, const nx_json *js)
 		}
 		config->nr_rule = nr_rule;
 	}
-
+	
 #define INIT_UINT_PARAM(field, name, max) \
 	j_opt = nx_json_get(js, #name); \
 	if (j_opt->type == NX_JSON_NULL) { \

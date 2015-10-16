@@ -132,12 +132,26 @@ struct tbq_rule {
 	struct tbq_token_rule token_rules[2];
 };
 
+#define TBQ_MAX_IFACE_COUNT (16)
+#define TBQ_MAX_IFNAME_SIZE (32)
+struct tbq_iface_item {
+	char name[TBQ_MAX_IFNAME_SIZE];
+};
+
+struct tbq_iface {
+	uint32_t cur;
+	char ifname[TBQ_MAX_IFNAME_SIZE][TBQ_MAX_IFACE_COUNT];
+	//struct tbq_iface_item ifaces[TBQ_MAX_IFACE_COUNT];
+};
+
 struct tbq_config {
 	struct tbq_rule *rules;
 	uint32_t nr_rule;
 	uint32_t max_backlog_packets;
 	uint32_t latency_shift;
 	uint32_t disable_timeout;
+	struct tbq_iface lan;
+	struct tbq_iface wan;
 };
 
 struct tbq_user {

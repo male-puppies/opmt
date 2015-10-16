@@ -78,6 +78,18 @@ static void tbq_flow_track_cleanup(struct tbq_flow_track *tf)
 	memset(tf, 0, sizeof(struct tbq_flow_track));
 }
 
+static inline int match_iface(const char *name, struct tbq_iface *iface) {
+	int i = 0; 
+	
+	BUG_ON(!name);
+	for (; i < iface->cur; i++) {
+		if (!strcmp(iface->ifname[i], name))
+			return 1;
+	}
+	
+	return 0;
+}
+
 static inline int tbq_get_packet_dir(
 	const struct sk_buff *skb,
 	const struct net_device *in,
@@ -92,9 +104,36 @@ static inline int tbq_get_packet_dir(
 // 	}
 // #endif
 
+	lan_in = match_iface(in->name, &tbq.config.lan);
+	if (lan_in) {
+		lan_out = match_iface(out->name, &tbq.config.wan);
+		if (lan_out)
+			return 0; 	// LAN TO WAN
+		/*
+		lan_out = match_iface(out->name, &tbq.config.lan); // TODO 
+		if (lan_out)
+			return -1;	// LAN TO LAN
+		printk("miss match %s -> %s\n", in->name, out->name);
+		*/
+		return -1;
+	}
+	
+	// WAN -> ?
+	lan_out = match_iface(out->name, &tbq.config.lan);
+	if (lan_out)
+		return 1; 	// WAN TO LAN
+	
+	/*
+	lan_in = match_iface(out->name, &tbq.config.wan);
+	if (lan_in)
+		return -1; 	// WAN TO WAN
+	
+	printk("miss match 2 %s -> %s\n", in->name, out->name);
+	*/
+	return -1;
+	/*
 	lan_in = strncmp(in->name, "br", 2) == 0;
 	lan_out = strncmp(out->name, "br", 2) == 0;
-
 	if (lan_in) {
 		if (lan_out)
 			return -1;	// LAN TO LAN
@@ -105,6 +144,7 @@ static inline int tbq_get_packet_dir(
 		return -1;		// WAN TO WAN
 	}
 	return -1;
+	*/
 }
 
 static inline uint32_t tbq_get_packet_length(const struct sk_buff *skb)
@@ -647,11 +687,11 @@ static unsigned int tbq_nf_hook(
 			spin_lock_bh(&tbq.lock);
 			ret = tbq_filter_packet(skb, nos, pkt_dir);
 			spin_unlock_bh(&tbq.lock);
-		} else {
+		}/* else {
 			if(net_ratelimit()) {
 				printk("x"); 
 			}
-		}
+		}*/
 	}
 	rcu_read_unlock();
 
