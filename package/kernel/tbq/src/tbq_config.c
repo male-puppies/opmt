@@ -530,13 +530,13 @@ static void init_iface(struct tbq_config *config, const nx_json *j_opt, struct t
 		iface->cur++;
 		p = p2 + 1;
 	}
-	
+	/*
 	{
 		int i = 0; 
 		for (; i < iface->cur; i++) {
 			printk("%d--%s--\n", i, iface->ifname[i]);
 		}
-	}
+	}*/
 }
 
 static int tbq_config_init(struct tbq_config *config, const nx_json *js)
