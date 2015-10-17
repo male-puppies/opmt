@@ -6,9 +6,9 @@ config system
 	option conloglevel 6
 
 config timeserver ntp
-	list server	pool.ntp.org
-	list server	1.openwrt.pool.ntp.org
-	list server	2.openwrt.pool.ntp.org
-	list server	3.openwrt.pool.ntp.org
-	option enabled 1
-	option enable_server 1
+	option enabled '1'
+	list server 'ntp.api.bz'
+	list server 's2b.time.edu.cn'
+	list server 's2k.time.edu.cn'
+	list server 's2m.time.edu.cn'
+	list server 's1a.time.edu.cn'
