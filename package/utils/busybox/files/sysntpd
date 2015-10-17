@@ -19,7 +19,7 @@ start_service() {
 		echo "validation failed"
 		return 1
 	}
-
+	enabled=0
 	[ $enabled = 0 ] && return
 
 	[ -z "$server" ] && return
@@ -40,3 +40,4 @@ service_triggers()
 	procd_add_reload_trigger "system"
 	procd_add_validation validate_ntp_section
 }
+
