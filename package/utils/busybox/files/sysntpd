@@ -19,7 +19,7 @@ start_service() {
 		echo "validation failed"
 		return 1
 	}
-	enabled=0
+
 	[ $enabled = 0 ] && return
 
 	[ -z "$server" ] && return
