@@ -350,7 +350,7 @@ static void auth_user_watchdog_fn(unsigned long arg)
 	for (slot_idx = 0; slot_idx < AUTH_USER_HASH_SIZE; slot_idx++) {
 		hslot = &s_user_hash.slots[slot_idx];
 		hlist_for_each_entry_safe(user, node, hslot, user_node) {
-			if (user->info.jf < (now_jf - s_user_timeout_intval_jf)) {
+			if ((now_jf - user->info.jf) > s_user_timeout_intval_jf) {
 				#if DEBUG_ENABLE
 					free_total++;
 					AUTH_DEBUG("user del:%pI4h for timeout[last_jf:%llu, timeout_jf:%u, now_jf:%u].\n", 
@@ -359,7 +359,7 @@ static void auth_user_watchdog_fn(unsigned long arg)
 				auth_user_del(slot_idx, user);
 				user = NULL;
 			}
-			else if (user->info.jf < (now_jf - s_user_off_intval_jf)) {
+			else if ((now_jf - user->info.jf) > s_user_off_intval_jf) {
 				#if DEBUG_ENABLE
 				if (user->info.status == USER_ONLINE)
 				{
