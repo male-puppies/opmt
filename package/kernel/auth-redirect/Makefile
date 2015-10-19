@@ -22,7 +22,7 @@ define KernelPackage/auth-redirect
 endef
 
 define KernelPackage/auth-redirect/description
-  Kernel module to traffic control subsystem events.
+  Kernel module to user auth redirect subsystem events.
 endef
 
 EXTRA_KCONFIG:= \
