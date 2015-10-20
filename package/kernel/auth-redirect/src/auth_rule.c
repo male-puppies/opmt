@@ -512,7 +512,7 @@ OUT:
 
 /*First step,traversing auth rules until across a match rule or run over all rule.
  *Second step, i.e, last step, return the process code.*/
-int auth_rule_check(uint32_t ipv4)
+int auth_rule_check(uint32_t ipv4, int *auth_type)
 {
 	int i = 0, matched = 0, auth_res = AUTH_RULE_PASS;	/*default process is pass*/
 	struct list_head *cur = NULL;
@@ -542,9 +542,11 @@ int auth_rule_check(uint32_t ipv4)
 		}
 		switch (ip_rule->type) {
 			case NORMAL:
+				*auth_type = WEB_AUTH;
 				auth_res = AUTH_RULE_REDIRECT;
 				break;
 			case WHITE:
+				*auth_type = AUTO_AUTH;
 				auth_res = AUTH_RULE_PASS;
 				break;
 			case BLACK:

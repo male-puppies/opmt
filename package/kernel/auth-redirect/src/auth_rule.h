@@ -25,7 +25,8 @@ int update_auth_rules(struct ioc_auth_ip_rule *ip_rules, uint32_t n_rule);
 int update_auth_options(struct auth_options *options);
 int update_auth_if_info(struct auth_if_info* if_info, uint16_t n_if);
 
-int auth_rule_check(uint32_t ipv4);
+//int auth_rule_check(uint32_t ipv4);
+int auth_rule_check(uint32_t ipv4, int *auth_type);
 int flow_dir_check(const char *inname, const char *outname);
 
 int get_auth_cfg_status(void);

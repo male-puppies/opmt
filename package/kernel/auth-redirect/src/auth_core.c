@@ -231,7 +231,7 @@ static int auth_redirect(struct sk_buff *skb, const struct net_device *in, const
 
 static unsigned int packet_process(struct sk_buff* skb, const struct net_device *in, const struct net_device *out)
 {
-	int check_ret = 0;
+	int check_ret = 0, auth_type = 0;
 	struct user_info info;
 	struct user_node *user; 
 	struct ethhdr *eth_header = (struct ethhdr *)skb_mac_header(skb);
@@ -253,10 +253,10 @@ static unsigned int packet_process(struct sk_buff* skb, const struct net_device 
 			return NF_ACCEPT;
 		}
 		/*status changing from online to offline, need recheck auth rules.*/
-		check_ret = auth_rule_check(info.ipv4);
+		check_ret = auth_rule_check(info.ipv4, &auth_type);
 	}
 	else {
-		check_ret = auth_rule_check(info.ipv4);
+		check_ret = auth_rule_check(info.ipv4, &auth_type);
 		if (check_ret == AUTH_RULE_REDIRECT) {
 			user = auth_user_add(&info);
 			if (user == NULL) {
@@ -264,6 +264,7 @@ static unsigned int packet_process(struct sk_buff* skb, const struct net_device 
 			}
 		}
 	}
+	update_auth_user_auth_type(user, auth_type);
 	switch(check_ret) {
 		case AUTH_RULE_PASS:
 			return NF_ACCEPT;

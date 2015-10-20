@@ -66,6 +66,7 @@ static struct user_node *user_create(const struct user_info *user_info)
 	user->info.ipv4 = user_info->ipv4;
 	user->info.jf = jiffies;
 	user->info.status = USER_OFFLINE;
+	user->info.auth_type = UNKNOW_AUTH;
 	memcpy(user->info.mac, user_info->mac, ETH_ALEN);
 	AUTH_DEBUG("create a new user node.");
 	return user;
@@ -137,6 +138,7 @@ static void user_info_collet(uint64_t tm_stamp)
 			info->ipv4 = user->info.ipv4;
 			info->jf = jiffies_to_msecs(user->info.jf) / MSECS_TO_SEC;
 			info->status = user->info.status;
+			info->auth_type = user->info.auth_type;
 			memcpy(info->mac, user->info.mac, ETH_ALEN);
 			i++;
 		}
@@ -273,6 +275,11 @@ struct user_node *auth_user_add(struct user_info *user_info)
 	return user;
 }
 
+int update_auth_user_auth_type(struct user_node *user, int type)
+{
+	user->info.auth_type = type;
+	return 0;
+}
 
 int update_auth_users_stat(struct user_info *infos, uint16_t nc_user)
 {

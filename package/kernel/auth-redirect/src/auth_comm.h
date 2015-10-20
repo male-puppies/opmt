@@ -18,6 +18,12 @@
 #define AUTH_WARN(format,...)    do { printk(KERN_WARNING "%s "format, __func__, ##__VA_ARGS__); } while(0)
 #define AUTH_ERROR(format,...)   do { printk(KERN_ERR "%s "format, __func__, ##__VA_ARGS__); } while(0)
 
+enum AUTH_TYPE {
+	UNKNOW_AUTH = 0,
+	AUTO_AUTH 	= 1,
+	WEB_AUTH  	= 2,
+};
+
 #define AUTH_NEW(type) \
 	AUTH_NEW_N(type, 1)
 
