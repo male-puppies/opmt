@@ -9,7 +9,6 @@
 #include <linux/rwlock_types.h>
 #include <linux/rwlock.h>
 
-
 #define DEBUG_ENABLE 1		/*DEBUG PRINT SWITCH*/
 #define FREQ_DEBUG_ENABLE 0 /*FREQUENT DEBUG PRINT SWITCH*/
 

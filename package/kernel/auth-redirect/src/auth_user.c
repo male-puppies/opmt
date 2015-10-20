@@ -281,6 +281,14 @@ int update_auth_user_auth_type(struct user_node *user, int type)
 	return 0;
 }
 
+
+int update_auth_user_status(struct user_node *user, int status)
+{
+	user->info.status = status;
+	return 0;
+}
+
+
 int update_auth_users_stat(struct user_info *infos, uint16_t nc_user)
 {
 	uint16_t i = 0;

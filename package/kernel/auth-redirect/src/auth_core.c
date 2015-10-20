@@ -254,17 +254,27 @@ static unsigned int packet_process(struct sk_buff* skb, const struct net_device 
 		}
 		/*status changing from online to offline, need recheck auth rules.*/
 		check_ret = auth_rule_check(info.ipv4, &auth_type);
+		/*For old auto auth user, should change its statsu from offline to online*/
+		if (auth_type == AUTO_AUTH) {
+			update_auth_user_status(user, USER_ONLINE);
+		}
 	}
 	else {
 		check_ret = auth_rule_check(info.ipv4, &auth_type);
-		if (check_ret == AUTH_RULE_REDIRECT) {
+		/*new web_auth user and auto auth user*/
+		if (check_ret == AUTH_RULE_REDIRECT || auth_type == AUTO_AUTH) {
 			user = auth_user_add(&info);
 			if (user == NULL) {
 				return NF_DROP;
 			}
+			update_auth_user_auth_type(user, auth_type);
+			if (auth_type == AUTO_AUTH) {
+				/*new auth user need set status to online directly.*/
+				update_auth_user_status(user, USER_ONLINE);
+			}
 		}
 	}
-	update_auth_user_auth_type(user, auth_type);
+
 	switch(check_ret) {
 		case AUTH_RULE_PASS:
 			return NF_ACCEPT;
