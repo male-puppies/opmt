@@ -32,6 +32,7 @@ void display_all_user(void);
 void display_user(struct user_node *user);
 
 int update_auth_user_auth_type(struct user_node *user, int type);
+int update_auth_user_status(struct user_node *user, int status);
 int update_auth_users_stat(struct user_info *infos, uint16_t nc_user);
 int update_auth_user_active_tm(struct user_node *user);
 int auth_users_get(struct user_stat_assist *assist);
