@@ -521,6 +521,7 @@ int auth_rule_check(uint32_t ipv4, int *auth_type)
 	spin_lock_bh(&s_auth_cfg.lock);
 	if (list_empty(&s_auth_cfg.rule_list)) {
 		spin_unlock_bh(&s_auth_cfg.lock);
+		*auth_type = UNKNOW_AUTH;
 		return auth_res;
 	}
 	list_for_each(cur, &s_auth_cfg.rule_list) {
@@ -550,9 +551,11 @@ int auth_rule_check(uint32_t ipv4, int *auth_type)
 				auth_res = AUTH_RULE_PASS;
 				break;
 			case BLACK:
+				*auth_type = UNKNOW_AUTH;
 				auth_res = AUTH_RULE_REJECT;
 				break;
 			default:
+				*auth_type = UNKNOW_AUTH;
 				auth_res = AUTH_RULE_PASS;
 				break;
 		}

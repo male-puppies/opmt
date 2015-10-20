@@ -255,14 +255,15 @@ static unsigned int packet_process(struct sk_buff* skb, const struct net_device 
 		/*status changing from online to offline, need recheck auth rules.*/
 		check_ret = auth_rule_check(info.ipv4, &auth_type);
 		/*For old auto auth user, should change its statsu from offline to online*/
-		if (auth_type == AUTO_AUTH) {
+		if (auth_type == AUTO_AUTH && check_ret == AUTH_RULE_PASS) {
 			update_auth_user_status(user, USER_ONLINE);
 		}
 	}
 	else {
 		check_ret = auth_rule_check(info.ipv4, &auth_type);
 		/*new web_auth user and auto auth user*/
-		if (check_ret == AUTH_RULE_REDIRECT || auth_type == AUTO_AUTH) {
+		if ((auth_type == WEB_AUTH && check_ret == AUTH_RULE_REDIRECT) || 
+			(auth_type == AUTO_AUTH && check_ret == AUTH_RULE_PASS)) {
 			user = auth_user_add(&info);
 			if (user == NULL) {
 				return NF_DROP;
