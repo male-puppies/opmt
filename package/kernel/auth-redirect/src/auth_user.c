@@ -289,6 +289,30 @@ int update_auth_user_status(struct user_node *user, int status)
 }
 
 
+int kick_off_all_auth_auto_users(void)
+{
+	int i = 0, slot_idx = 0;
+	struct user_info *info = NULL;
+	struct user_node *user = NULL;
+	struct hlist_head *hslot = NULL;
+	spin_lock_bh(&s_user_hash.lock);
+	for (i = 0, slot_idx = 0; slot_idx < AUTH_USER_HASH_SIZE; slot_idx++) {
+		hslot = &s_user_hash.slots[slot_idx];
+		hlist_for_each_entry(user, hslot, user_node) {
+			if (user->info.auth_type == AUTO_AUTH) {
+				user->info.status = USER_OFFLINE;
+				i++;
+			}
+		}
+	}
+	spin_unlock_bh(&s_user_hash.lock);
+	#if DEBUG_ENABLE
+		AUTH_DEBUG("Kick off %u auto users totally.\n", i);
+	#endif
+	return 0;
+}
+
+
 int update_auth_users_stat(struct user_info *infos, uint16_t nc_user)
 {
 	uint16_t i = 0;
