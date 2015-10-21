@@ -347,7 +347,8 @@ int update_auth_rules(struct ioc_auth_ip_rule *ip_rules, uint32_t n_rule)
 #if DEBUG_ENABLE
 	display_auth_ip_rules();
 #endif
-
+	/*Introducing tight coupling, it should done by independent cmd*/
+	kick_off_all_auth_auto_users();
 OUT:
 	if (no_mem) {
 		if (ip_rule_nodes) {
