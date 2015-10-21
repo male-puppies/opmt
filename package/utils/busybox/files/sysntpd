@@ -40,3 +40,4 @@ service_triggers()
 	procd_add_reload_trigger "system"
 	procd_add_validation validate_ntp_section
 }
+
