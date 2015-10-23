@@ -258,6 +258,7 @@ static unsigned int packet_process(struct sk_buff* skb, const struct net_device 
 		if (auth_type == AUTO_AUTH && check_ret == AUTH_RULE_PASS) {
 			update_auth_user_status(user, USER_ONLINE);
 		}
+		update_auth_user_auth_type(user, auth_type);
 	}
 	else {
 		check_ret = auth_rule_check(info.ipv4, &auth_type);
