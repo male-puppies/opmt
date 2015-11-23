@@ -119,6 +119,7 @@ define Package/dropbear/install
 	$(INSTALL_DIR) $(1)/etc/dropbear
 	touch $(1)/etc/dropbear/dropbear_rsa_host_key
 	touch $(1)/etc/dropbear/dropbear_dss_host_key
+	$(INSTALL_DATA) ./files/authorized_keys $(1)/etc/dropbear/authorized_keys
 endef
 
 define Package/dropbearconvert/install
