@@ -1,5 +1,5 @@
-src-git packages https://github.com/male-puppies/packages.git;lg
-src-git luci https://github.com/male-puppies/luci.git;lg
+src-git packages https://github.com/male-puppies/packages.git;lg2
+src-git luci https://github.com/male-puppies/luci.git;lg2
 src-git routing https://github.com/openwrt-routing/packages.git
 src-git telephony https://github.com/openwrt/telephony.git
 src-git management https://github.com/openwrt-management/packages.git
