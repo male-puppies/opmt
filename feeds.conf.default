@@ -7,7 +7,7 @@ src-git targets https://github.com/openwrt/targets.git
 src-git puppies https://github.com/male-puppies/puppies.git
 src-git apop https://github.com/male-puppies/apop.git;lg-newui
 #src-svn svnlib https://192.168.0.210/svn/ztwk/7621/project/src/lib
-src-git zshell https://github.com/male-puppies/zshell.git
+src-git zui https://github.com/male-puppies/zui.git
 
 #src-git firefly_packages https://github.com/FireWRT/OpenWrt-Firefly-Packages.git
 #src-git oldpackages http://git.openwrt.org/packages.git
