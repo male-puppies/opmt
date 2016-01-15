@@ -66,8 +66,8 @@ ucidef_set_interfaces_lan_wan() {
 	local wan_if=$2
 
 	json_select_object network
-	_ucidef_set_interface lan $lan_if
-	_ucidef_set_interface wan $wan_if
+	_ucidef_set_interface lan0 $lan_if
+	_ucidef_set_interface wan0 $wan_if
 	json_select ..
 }
 

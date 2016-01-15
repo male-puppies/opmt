@@ -6,13 +6,15 @@ config interface loopback
 	option ipaddr	127.0.0.1
 	option netmask	255.0.0.0
 
-config interface lan
-	option ifname	eth0
-	option type 	bridge
+config interface lan0
+	option ifname	eth0.1
 	option proto	static
 	option ipaddr	172.16.0.1
 	option netmask	255.255.0.0
-	option ip6assign 60
+
+config interface wan0
+	option proto dhcp
+	option ifname eth0.5
 
 config globals globals
 	option ula_prefix auto

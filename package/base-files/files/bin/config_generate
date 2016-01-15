@@ -32,8 +32,8 @@ generate_network() {
 
 	[ -n "$ifname" ] || return
 	[ "$create_vlan" -eq 1 ] && case $1 in
-	lan) vlan=1;;
-	wan) vlan=5;;
+	lan0) vlan=1;;
+	wan0) vlan=5;;
 	*)
 		vlan=$next_vlan
 		next_vlan=$((next_vlan + 1))
@@ -50,15 +50,13 @@ set network.$1.macaddr='$macaddr'
 EOF
 
 	case $1 in
-	lan) uci -q batch <<EOF
-set network.$1.type='bridge'
+	lan0) uci -q batch <<EOF
 set network.$1.proto='static'
 set network.$1.ipaddr='172.16.0.1'
 set network.$1.netmask='255.255.0.0'
-set network.$1.ip6assign='60'
 EOF
 		;;
-	wan) uci -q batch <<EOF
+	wan0) uci -q batch <<EOF
 set network.$1.proto='dhcp'
 delete network.wan6
 EOF
