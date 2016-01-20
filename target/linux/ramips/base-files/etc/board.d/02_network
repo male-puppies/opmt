@@ -131,7 +131,6 @@ ramips_setup_interfaces()
 	dir-320-b1 | \
 	dir-615-h1 | \
 	firewrt | \
-	puppies | \
 	pbr-m1 | \
 	hlk-rm04 | \
 	mt7621 | \
@@ -151,6 +150,11 @@ ramips_setup_interfaces()
 		ucidef_add_switch "switch0" "1" "1"
 		ucidef_add_switch_vlan "switch0" "1" "0 1 2 3 6t"
 		ucidef_add_switch_vlan "switch0" "5" "4 6t"
+		;;
+
+	puppies)
+		ucidef_set_interface_lan "eth0"
+		ucidef_add_switch "switch0" "1" "0"
 		;;
 
 	whr-1166d)
@@ -389,6 +393,11 @@ ramips_setup_macs()
 		;;
 
 	esac
+
+	if [ x$board = "xpuppies" ]; then
+		[ -n "$lan_mac" ] && ucidef_set_interface_macaddr lan0 $lan_mac
+		return 0
+	fi
 
 	[ -n "$lan_mac" ] && ucidef_set_interface_macaddr lan0 $lan_mac
 	[ -n "$wan_mac" ] && ucidef_set_interface_macaddr wan0 $wan_mac

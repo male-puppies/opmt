@@ -48,7 +48,7 @@ ucidef_set_interface_lan() {
 	local lan_if=$1
 
 	json_select_object network
-	_ucidef_set_interface lan $lan_if
+	_ucidef_set_interface lan0 $lan_if
 	json_select ..
 }
 
