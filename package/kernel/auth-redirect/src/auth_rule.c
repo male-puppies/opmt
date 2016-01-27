@@ -33,6 +33,19 @@ struct auth_rule_config {
 static struct auth_rule_config s_auth_cfg;
 
 
+#define OS_INIT_TIMER(_timer, _fn, _arg)	\
+do {							\
+	init_timer(_timer);				\
+	(_timer)->function = (_fn);			\
+	(_timer)->data = (unsigned long)(_arg);		\
+} while (0)
+
+#define OS_SET_TIMER(_timer, _ms)	\
+	mod_timer(_timer, jiffies + ((_ms)*HZ)/1000)
+
+#define OS_CANCEL_TIMER(_timer)		del_timer_sync(_timer)
+
+
 static char *safe_strncpy(char *dst, const char *src, const size_t len)
 {
 	if (dst == NULL || src == NULL) {
@@ -107,7 +120,7 @@ static int clean_auth_rules(struct list_head *rule_list)
 		kfree(rule_node);
 		rule_node = NULL;
 	}
-	INIT_LIST_HEAD(&rule_list);
+	INIT_LIST_HEAD(rule_list);
 #if DEBUG_ENABLE
 	AUTH_DEBUG("Free %d rules totally.\n", free_cnt);
 #endif
@@ -134,6 +147,7 @@ static int clean_all_auth_rules(void)
 {
 	clean_immutable_auth_rules();
 	clean_mutable_auth_rules();
+	return 0;
 }
 
 
@@ -153,8 +167,8 @@ int add_auth_rule(struct auth_ip_rule_node *ip_rule_node, struct list_head *rule
 			break;
 		}
 	}
-	if (ip_rule_node->timeout) {
-		ip_rule_node->jf = jiffies +　msecs_to_jiffies(ip_rule_node->timeout * 1000);
+	if (ip_rule_node->ip_rule.timeout) {
+		ip_rule_node->jf = jiffies + msecs_to_jiffies(ip_rule_node->ip_rule.timeout * 1000);
 	}
 	list_add(&ip_rule_node->rule_node, cur);
 	return 0;
@@ -325,8 +339,8 @@ static int copy_auth_if_info_to_node(struct if_info_node *if_info_node, struct a
 
 static int get_immutable_ip_rules_num(struct ioc_auth_ip_rule *ip_rules, uint32_t n_rule)
 {
-	int i = 0, count = 0;
-	struct ioc_auth_ip_rule cur_rule = ip_rules;
+	int i = 0, count = 0, offset = 0;
+	struct ioc_auth_ip_rule *cur_rule = ip_rules;
 	for (i = 0; i < n_rule; i++) {
 		AUTH_DEBUG("rule:%p.\n", cur_rule);
 		if (cur_rule->timeout == 0) {
@@ -640,12 +654,10 @@ static void mutable_rule_watchdog_fn(unsigned long arg)
 	uint32_t free_total = 0;
 #endif
 	uint32_t now_jf = jiffies;
-	uint16_t slot_idx = 0;
-	struct hlist_head *hslot = NULL;
-	struct user_node *user = NULL;
-	struct hlist_node *node = NULL;
+	struct auth_ip_rule_node *rule_node = NULL;
 	struct list_head *rule_list = &s_auth_cfg.mutable_rule_list;
-
+	struct list_head *cur = NULL, *next = NULL;
+	
 	spin_lock_bh(&s_auth_cfg.lock);
 
 	if (list_empty(rule_list)) {
@@ -659,7 +671,7 @@ static void mutable_rule_watchdog_fn(unsigned long arg)
 		}
 		list_del(cur);
 	#if DEBUG_ENABLE
-		free_cnt ++;
+		free_total ++;
 	#endif
 		if (rule_node->ip_rule.ip_ranges) {
 			kfree(rule_node->ip_rule.ip_ranges);
@@ -714,7 +726,7 @@ int auth_rule_init()
 {
 	memset(&s_auth_cfg, 0, sizeof(struct auth_rule_config));
 	INIT_LIST_HEAD(&s_auth_cfg.rule_list);
-	INIT_LIST_HEAD(&s_auth_cfg.mutable_rule_list;
+	INIT_LIST_HEAD(&s_auth_cfg.mutable_rule_list);
 	INIT_LIST_HEAD(&s_auth_cfg.if_list);
 	spin_lock_init(&s_auth_cfg.lock);
 	OS_INIT_TIMER(&s_watchdog_tm, mutable_rule_watchdog_fn, NULL);

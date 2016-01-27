@@ -292,7 +292,7 @@ int update_auth_user_status(struct user_node *user, int status)
 int kick_off_all_auth_auto_users(void)
 {
 	int i = 0, slot_idx = 0;
-	struct user_info *info = NULL;
+	//struct user_info *info = NULL;
 	struct user_node *user = NULL;
 	struct hlist_head *hslot = NULL;
 	spin_lock_bh(&s_user_hash.lock);
@@ -378,7 +378,7 @@ static void auth_user_watchdog_fn(unsigned long arg)
 #if DEBUG_ENABLE
 	uint32_t free_total = 0;
 #endif
-	uint64_t now_jf = jiffies;
+	uint32_t now_jf = jiffies;
 	uint16_t slot_idx = 0;
 	struct hlist_head *hslot = NULL;
 	struct user_node *user = NULL;
@@ -391,7 +391,7 @@ static void auth_user_watchdog_fn(unsigned long arg)
 			if ((now_jf - user->info.jf) >= s_user_timeout_intval_jf) {
 				#if DEBUG_ENABLE
 					free_total++;
-					AUTH_DEBUG("user del:%pI4h for timeout[last_jf:%llu, timeout_jf:%u, now_jf:%u].\n", 
+					AUTH_DEBUG("user del:%pI4h for timeout[last_jf:%lluu, timeout_jf:%u, now_jf:%u].\n", 
 								&user->info.ipv4, user->info.jf, s_user_timeout_intval_jf, now_jf);
 				#endif
 				auth_user_del(slot_idx, user);
