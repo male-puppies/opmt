@@ -3,7 +3,7 @@
 #include "auth_rule.h"
 #include "auth_user.h"
 
-#define WATCHDOG_EXPIRED_INTVAL		(300 * 1000) /*millisecond*/
+#define WATCHDOG_EXPIRED_INTVAL		(5 * 1000) /*millisecond*/
 static struct timer_list s_watchdog_tm;			/*tm for forcing free timeout user*/
 static uint32_t s_watchdog_intval_jf = 0;		/*unit is millisecond*/
 static uint32_t s_rule_timeout_intval_jf = 0;
@@ -582,6 +582,8 @@ OUT:
 }
 
 
+
+
 /*First step,traversing auth rules until across a match rule or run over all rule.
  *Second step, i.e, last step, return the process code.*/
 int auth_rule_check(uint32_t ipv4, int *auth_type)
@@ -596,6 +598,23 @@ int auth_rule_check(uint32_t ipv4, int *auth_type)
 		*auth_type = UNKNOW_AUTH;
 		return auth_res;
 	}
+
+	list_for_each(cur, &s_auth_cfg.mutable_rule_list) {
+		cur_node = list_entry(cur, struct auth_ip_rule_node, rule_node);
+		ip_rule = &cur_node->ip_rule;
+		/*ip in range*/
+		for (i = 0; i < ip_rule->nc_ip_range; i++) {
+			if (ipv4 < ip_rule->ip_ranges[i].min || ipv4 > ip_rule->ip_ranges[i].max) {
+				continue;
+			}
+			matched = 1;
+			goto OUT;
+		}
+		if (matched == 0) {
+			continue;
+		}
+	}
+
 	list_for_each(cur, &s_auth_cfg.rule_list) {
 		cur_node = list_entry(cur, struct auth_ip_rule_node, rule_node);
 		if (cur_node->ip_rule.enable == 0) {
@@ -633,6 +652,7 @@ int auth_rule_check(uint32_t ipv4, int *auth_type)
 		}
 		break;
 	}
+OUT:
 	spin_unlock_bh(&s_auth_cfg.lock);
 #if DEBUG_ENABLE
 	if (matched) {

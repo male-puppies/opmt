@@ -366,6 +366,7 @@ static unsigned int redirect_nf_hook(
 				if (strncmp(url_info.host, "wifi.weixin.qq.com", url_info.host_len) == 0 &&
 							strncmp(url_info.uri, "/resources/js/wechatticket/wechatutil.js", url_info.uri_len) == 0)
 				{
+					printk("Bypass wechat.\n")
 					return NF_ACCEPT;
 				}
 			}
