@@ -4,5 +4,5 @@ test $? -eq 0 || exit 1
 
 cd bin/ramips/
 ls *.bin | grep -v puppies | xargs rm >/dev/null 2>&1 
-echo mv *AC1032-201601271754-V2.1*bin $filename
-mv *AC1032-201601271754-V2.1*bin $filename
+echo mv *$filename*bin $filename
+mv *$filename*bin $filename
