@@ -73,7 +73,7 @@ int auth_enable(void)
 static int do_auth_redirect(struct sk_buff *skb, const struct net_device *dev)
 {
 	#define REDIRECT_URL   "HTTP/1.1 302 Moved Temporarily\r\n"\
-					   "Location: http://10.10.10.10/index.html?"\
+					   "Location: http://10.10.10.10/webui?"\
 					   "mac=%02x:%02x:%02x:%02x:%02x:%02x&ip=%u.%u.%u.%u\r\n"\
 					   "Content-Type: text/html;\r\n"\
 					   "Cache-Control: no-cache\r\n"\

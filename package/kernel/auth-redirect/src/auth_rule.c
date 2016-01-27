@@ -3,10 +3,16 @@
 #include "auth_rule.h"
 #include "auth_user.h"
 
+#define WATCHDOG_EXPIRED_INTVAL		(300 * 1000) /*millisecond*/
+static struct timer_list s_watchdog_tm;			/*tm for forcing free timeout user*/
+static uint32_t s_watchdog_intval_jf = 0;		/*unit is millisecond*/
+static uint32_t s_rule_timeout_intval_jf = 0;
+
 /*auth ip rule node*/
 struct auth_ip_rule_node {
 	struct list_head rule_node;
 	struct auth_ip_rule ip_rule;
+	uint64_t jf;
 };
 
 /*net interface node*/
@@ -17,6 +23,7 @@ struct if_info_node {
 
 struct auth_rule_config {
 	struct list_head rule_list;
+	struct list_head mutable_rule_list;
 	struct auth_options auth_option;
 	struct list_head if_list;
 	enum AUTH_RULE_CONF_STAT_E status;
@@ -71,8 +78,7 @@ void display_auth_ip_rules(void)
 }
 
 
-/*clean old auth rules*/
-static int clean_auth_rules(void)
+static int clean_auth_rules(struct list_head *rule_list)
 {
 	struct auth_ip_rule_node *rule_node = NULL;
 	struct list_head *cur = NULL, *next = NULL;
@@ -80,14 +86,14 @@ static int clean_auth_rules(void)
 	int free_cnt = 0;
 #endif
 	/*if don't check empty, will cause error.*/
-	if (list_empty(&s_auth_cfg.rule_list)) {
+	if (list_empty(rule_list)) {
 	#if DEBUG_ENABLE
 		AUTH_DEBUG("no rules clean.\n");
 	#endif
 		return 0;
 	}
 	/*notice: we cann't list entry directly.*/
-	list_for_each_safe(cur, next, &s_auth_cfg.rule_list) {
+	list_for_each_safe(cur, next, rule_list) {
 		rule_node = list_entry(cur, struct auth_ip_rule_node, rule_node);
 		list_del(cur);
 	#if DEBUG_ENABLE
@@ -101,7 +107,7 @@ static int clean_auth_rules(void)
 		kfree(rule_node);
 		rule_node = NULL;
 	}
-	INIT_LIST_HEAD(&s_auth_cfg.rule_list);
+	INIT_LIST_HEAD(&rule_list);
 #if DEBUG_ENABLE
 	AUTH_DEBUG("Free %d rules totally.\n", free_cnt);
 #endif
@@ -109,21 +115,46 @@ static int clean_auth_rules(void)
 }
 
 
-int add_auth_rule(struct auth_ip_rule_node *ip_rule_node)
+/*clean old immutable auth rules*/
+static int clean_immutable_auth_rules(void)
+{
+	return clean_auth_rules(&s_auth_cfg.rule_list);
+}
+
+
+/**/
+static int clean_mutable_auth_rules(void)
+{
+	return clean_auth_rules(&s_auth_cfg.mutable_rule_list);
+}
+
+
+/**/
+static int clean_all_auth_rules(void)
+{
+	clean_immutable_auth_rules();
+	clean_mutable_auth_rules();
+}
+
+
+int add_auth_rule(struct auth_ip_rule_node *ip_rule_node, struct list_head *rule_list)
 {
 	struct list_head *cur = NULL, *pre = NULL;
 	struct auth_ip_rule_node *cur_node = NULL;
 
-	if (list_empty(&s_auth_cfg.rule_list)) {
-		list_add(&ip_rule_node->rule_node, &s_auth_cfg.rule_list);
+	if (list_empty(rule_list)) {
+		list_add(&ip_rule_node->rule_node, rule_list);
 		return 0;
 	}
 	/*notice: we cann't list entry directly.*/
-	list_for_each_prev_safe(cur, pre, &s_auth_cfg.rule_list) {
+	list_for_each_prev_safe(cur, pre, rule_list) {
 		cur_node = list_entry(cur, struct auth_ip_rule_node, rule_node);
 		if (cur_node->ip_rule.priority >= ip_rule_node->ip_rule.priority) {
 			break;
 		}
+	}
+	if (ip_rule_node->timeout) {
+		ip_rule_node->jf = jiffies +　msecs_to_jiffies(ip_rule_node->timeout * 1000);
 	}
 	list_add(&ip_rule_node->rule_node, cur);
 	return 0;
@@ -158,6 +189,7 @@ int copy_auth_ip_rule_to_node(struct auth_ip_rule_node *rule_node,
 	safe_strncpy(dst_ip_rule->name, ip_rule->name, AUTH_RULE_NAME_MAX);
 	dst_ip_rule->type = ip_rule->type;
 	dst_ip_rule->priority = ip_rule->priority;
+	dst_ip_rule->timeout = ip_rule->timeout;
 	dst_ip_rule->enable = ip_rule->enable;
 	return 0;
 }
@@ -290,6 +322,22 @@ static int copy_auth_if_info_to_node(struct if_info_node *if_info_node, struct a
 	return 0;
 }
 
+
+static int get_immutable_ip_rules_num(struct ioc_auth_ip_rule *ip_rules, uint32_t n_rule)
+{
+	int i = 0, count = 0;
+	struct ioc_auth_ip_rule cur_rule = ip_rules;
+	for (i = 0; i < n_rule; i++) {
+		AUTH_DEBUG("rule:%p.\n", cur_rule);
+		if (cur_rule->timeout == 0) {
+			count ++;
+		}
+		offset = cur_rule->nc_ip_range * sizeof(struct ip_range) + sizeof(struct ioc_auth_ip_rule);
+		cur_rule = (struct ioc_auth_ip_rule*)((void*)cur_rule + offset);
+	}
+	return count;
+}
+
 /*
 *Firstly, allocating memory for new rules.
 *Then, cleaning up old rules and freeing its memory.
@@ -299,13 +347,14 @@ static int copy_auth_if_info_to_node(struct if_info_node *if_info_node, struct a
 int update_auth_rules(struct ioc_auth_ip_rule *ip_rules, uint32_t n_rule)
 {
 	int i = 0, no_mem = 0, offset = 0;
+	struct list_head *rule_list = NULL;
 	struct auth_ip_rule_node **ip_rule_nodes = NULL;
 	struct ioc_auth_ip_rule *cur_rule = NULL;
 	auth_cfg_disable();
 	spin_lock_bh(&s_auth_cfg.lock);
 	if (n_rule == 0) {
 		/*no rule, so, clear old rules*/
-		clean_auth_rules();
+		clean_immutable_auth_rules();
 		goto OUT;
 	}
 	/*allocating n rule_node*/
@@ -328,7 +377,9 @@ int update_auth_rules(struct ioc_auth_ip_rule *ip_rules, uint32_t n_rule)
 	}
 
 	/*free old rule_list*/
-	clean_auth_rules();
+	if (get_immutable_ip_rules_num(ip_rules, n_rule)) {
+		clean_immutable_auth_rules();
+	}
 
 	/*insert new rule*/
 	cur_rule = ip_rules;
@@ -338,7 +389,13 @@ int update_auth_rules(struct ioc_auth_ip_rule *ip_rules, uint32_t n_rule)
 			no_mem = 1;
 			goto OUT; 
 		}
-		add_auth_rule(ip_rule_nodes[i]);
+		if (cur_rule->timeout) {
+			rule_list = &s_auth_cfg.mutable_rule_list;
+		}
+		else {
+			rule_list = &s_auth_cfg.rule_list;
+		}
+		add_auth_rule(ip_rule_nodes[i], rule_list);
 		offset = cur_rule->nc_ip_range * sizeof(struct ip_range) + sizeof(struct ioc_auth_ip_rule);
 		cur_rule = (struct ioc_auth_ip_rule*)((void*)cur_rule + offset);
 		AUTH_DEBUG("newt_rule:%p. offset:%x\n", cur_rule, offset);
@@ -573,10 +630,54 @@ int auth_rule_check(uint32_t ipv4, int *auth_type)
 	}
 	#endif
 #endif
-
-
 	return auth_res;
 }
+
+
+static void mutable_rule_watchdog_fn(unsigned long arg)
+{
+#if DEBUG_ENABLE
+	uint32_t free_total = 0;
+#endif
+	uint32_t now_jf = jiffies;
+	uint16_t slot_idx = 0;
+	struct hlist_head *hslot = NULL;
+	struct user_node *user = NULL;
+	struct hlist_node *node = NULL;
+	struct list_head *rule_list = &s_auth_cfg.mutable_rule_list;
+
+	spin_lock_bh(&s_auth_cfg.lock);
+
+	if (list_empty(rule_list)) {
+		goto OUT;
+	}
+	/*notice: we cann't list entry directly.*/
+	list_for_each_safe(cur, next, rule_list) {
+		rule_node = list_entry(cur, struct auth_ip_rule_node, rule_node);
+		if (rule_node->jf > now_jf) {
+			continue;
+		}
+		list_del(cur);
+	#if DEBUG_ENABLE
+		free_cnt ++;
+	#endif
+		if (rule_node->ip_rule.ip_ranges) {
+			kfree(rule_node->ip_rule.ip_ranges);
+			rule_node->ip_rule.ip_ranges = NULL;
+		}
+		kfree(rule_node);
+		rule_node = NULL;
+	}
+OUT:
+	spin_unlock_bh(&s_auth_cfg.lock);
+	OS_SET_TIMER(&s_watchdog_tm, s_watchdog_intval_jf);
+#if DEBUG_ENABLE
+	if (free_total) {
+		AUTH_DEBUG("Totally, free %u mutable rules for timeout.\n", free_total);
+	}
+#endif
+}
+
 
 
 int get_auth_cfg_status(void)
@@ -613,8 +714,13 @@ int auth_rule_init()
 {
 	memset(&s_auth_cfg, 0, sizeof(struct auth_rule_config));
 	INIT_LIST_HEAD(&s_auth_cfg.rule_list);
+	INIT_LIST_HEAD(&s_auth_cfg.mutable_rule_list;
 	INIT_LIST_HEAD(&s_auth_cfg.if_list);
 	spin_lock_init(&s_auth_cfg.lock);
+	OS_INIT_TIMER(&s_watchdog_tm, mutable_rule_watchdog_fn, NULL);
+	s_watchdog_intval_jf = msecs_to_jiffies(WATCHDOG_EXPIRED_INTVAL);	/*unit is microseconds*/
+	s_rule_timeout_intval_jf = (s_watchdog_intval_jf << 1);
+	OS_SET_TIMER(&s_watchdog_tm, s_watchdog_intval_jf);
 	s_auth_cfg.status = AUTH_CONF_AVAILABLE;
 	return 0;
 }
@@ -623,6 +729,6 @@ int auth_rule_init()
 void auth_rule_fini(void)
 {
 	auth_cfg_disable();
-	clean_auth_rules();
+	clean_all_auth_rules();
 	clean_auth_if_infos();
 }
