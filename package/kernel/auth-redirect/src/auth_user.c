@@ -474,8 +474,10 @@ int auth_user_init(void)
 
 int auth_user_fini(void)
 {
+	spin_lock_bh(&s_user_hash.lock);
 	OS_CANCEL_TIMER(&s_watchdog_tm);
 	auth_user_clear();
+	spin_unlock_bh(&s_user_hash.lock);
 	AUTH_INFO("auth_user_fini success.\n");
 	return 0;
 }

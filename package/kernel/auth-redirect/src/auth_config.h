@@ -7,4 +7,5 @@ int do_set_auth_rules(struct auth_ioc_arg *arg);
 int do_set_auth_user_stat(struct auth_ioc_arg *arg);
 int do_get_auth_user_stat(struct auth_ioc_arg *arg);
 int do_set_auth_ifinfo(struct auth_ioc_arg *arg);
+int do_set_debug_options(struct auth_ioc_arg *arg);
 #endif

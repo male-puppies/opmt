@@ -131,3 +131,14 @@ int do_set_auth_ifinfo(struct auth_ioc_arg *arg)
 	data = (void*)arg + sizeof(struct auth_ioc_arg);
 	return update_auth_if_info((struct auth_if_info*)data, arg->num);
 }
+
+int do_set_debug_options(struct auth_ioc_arg *arg)
+{	
+	void *data = NULL;
+
+	if (auth_io_arg_check(arg, NET_IF_INFO) != 0) {
+		return -1;
+	}
+	data = (void*)arg + sizeof(struct auth_ioc_arg);
+	return 0;
+}

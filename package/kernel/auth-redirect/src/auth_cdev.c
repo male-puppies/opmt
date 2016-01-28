@@ -122,6 +122,10 @@ static long auth_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned lo
 			ret = do_set_auth_ifinfo(auth_arg);
 			break;
 
+		case SIOCSDEBUGOPTIONS:
+			ret = do_set_debug_options(auth_arg);
+			break;
+			
 		default:
 			ret = -1;
 			break;
@@ -202,11 +206,13 @@ cdev_add_failed:
 
 void  dev_fini(void) {
 	dev_t devno;
+	mutex_lock(&s_auth_dev_mutex);
 	devno = MKDEV(s_auth_major, s_auth_minor);
 	device_destroy(s_auth_class, devno);
 	class_destroy(s_auth_class);
 	cdev_del(&s_auth_cdev);
 	unregister_chrdev_region(devno, s_n_dev);
+	mutex_unlock(&s_auth_dev_mutex);
 	AUTH_INFO("dev_fini success.\n");
 	return;
 }

@@ -8,6 +8,7 @@
 #define SIOCSUSRSTAT		0x102	/*set usr status*/
 #define SIOCGUSRSTAT		0x103	/*get usr status*/
 #define SIOCSIFINFO			0x104	/*set network interface*/
+#define SIOCSDEBUGOPTIONS	0x105	/*set debug options*/
 
 #define	REDIRECT_URL_MAX		256
 #define REDIRECT_TITLE_MAX		128

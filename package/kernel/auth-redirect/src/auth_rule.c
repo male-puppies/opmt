@@ -6,7 +6,6 @@
 #define WATCHDOG_EXPIRED_INTVAL		(5 * 1000) /*millisecond*/
 static struct timer_list s_watchdog_tm;			/*tm for forcing free timeout user*/
 static uint32_t s_watchdog_intval_jf = 0;		/*unit is millisecond*/
-static uint32_t s_rule_timeout_intval_jf = 0;
 
 /*auth ip rule node*/
 struct auth_ip_rule_node {
@@ -72,6 +71,7 @@ static void display_auth_ip_rule(struct auth_ip_rule *ip_rule)
 	AUTH_DEBUG("TYPE of ip rule: %s.\n", ip_rule_type_str[ip_rule->type]);
 	AUTH_DEBUG("PRIORITY of ip rule: %d.\n", ip_rule->priority);
 	AUTH_DEBUG("ENABLE of ip rule: %d.\n", ip_rule->enable);
+	AUTH_DEBUG("TIMEOUT of ip rule: %d.\n", ip_rule->timeout);
 	for (i = 0; i < ip_rule->nc_ip_range; i++) {
 		AUTH_DEBUG("[min:%pI4h  --> max:%pI4h].\n", &ip_rule->ip_ranges[i].min, &ip_rule->ip_ranges[i].max);
 		AUTH_DEBUG("[min:%u  --> max:%u].\n", ip_rule->ip_ranges[i].min, ip_rule->ip_ranges[i].max);
@@ -84,6 +84,11 @@ void display_auth_ip_rules(void)
 {
 	struct list_head *cur = NULL;
 	struct auth_ip_rule_node *rule_node = NULL;
+	list_for_each(cur, &s_auth_cfg.mutable_rule_list) {
+		rule_node = list_entry(cur, struct auth_ip_rule_node, rule_node);
+		display_auth_ip_rule(&rule_node->ip_rule);
+	}
+
 	list_for_each(cur, &s_auth_cfg.rule_list) {
 		rule_node = list_entry(cur, struct auth_ip_rule_node, rule_node);
 		display_auth_ip_rule(&rule_node->ip_rule);
@@ -593,26 +598,30 @@ int auth_rule_check(uint32_t ipv4, int *auth_type)
 	struct auth_ip_rule_node *cur_node = NULL;
 	struct auth_ip_rule *ip_rule = NULL;
 	spin_lock_bh(&s_auth_cfg.lock);
+
+	if (!list_empty(&s_auth_cfg.mutable_rule_list)) {
+		list_for_each(cur, &s_auth_cfg.mutable_rule_list) {
+			cur_node = list_entry(cur, struct auth_ip_rule_node, rule_node);
+			ip_rule = &cur_node->ip_rule;
+			/*ip in range*/
+			for (i = 0; i < ip_rule->nc_ip_range; i++) {
+				if (ipv4 < ip_rule->ip_ranges[i].min || ipv4 > ip_rule->ip_ranges[i].max) {
+					continue;
+				}
+				matched = 1;
+				AUTH_DEBUG("STA(%pI4h) match rule, bypass.\n",  &ipv4);
+				goto OUT;
+			}
+			if (matched == 0) {
+				continue;
+			}
+		}
+	}
+
 	if (list_empty(&s_auth_cfg.rule_list)) {
 		spin_unlock_bh(&s_auth_cfg.lock);
 		*auth_type = UNKNOW_AUTH;
 		return auth_res;
-	}
-
-	list_for_each(cur, &s_auth_cfg.mutable_rule_list) {
-		cur_node = list_entry(cur, struct auth_ip_rule_node, rule_node);
-		ip_rule = &cur_node->ip_rule;
-		/*ip in range*/
-		for (i = 0; i < ip_rule->nc_ip_range; i++) {
-			if (ipv4 < ip_rule->ip_ranges[i].min || ipv4 > ip_rule->ip_ranges[i].max) {
-				continue;
-			}
-			matched = 1;
-			goto OUT;
-		}
-		if (matched == 0) {
-			continue;
-		}
 	}
 
 	list_for_each(cur, &s_auth_cfg.rule_list) {
@@ -701,8 +710,8 @@ static void mutable_rule_watchdog_fn(unsigned long arg)
 		rule_node = NULL;
 	}
 OUT:
-	spin_unlock_bh(&s_auth_cfg.lock);
 	OS_SET_TIMER(&s_watchdog_tm, s_watchdog_intval_jf);
+	spin_unlock_bh(&s_auth_cfg.lock);
 #if DEBUG_ENABLE
 	if (free_total) {
 		AUTH_DEBUG("Totally, free %u mutable rules for timeout.\n", free_total);
@@ -750,8 +759,7 @@ int auth_rule_init()
 	INIT_LIST_HEAD(&s_auth_cfg.if_list);
 	spin_lock_init(&s_auth_cfg.lock);
 	OS_INIT_TIMER(&s_watchdog_tm, mutable_rule_watchdog_fn, NULL);
-	s_watchdog_intval_jf = msecs_to_jiffies(WATCHDOG_EXPIRED_INTVAL);	/*unit is microseconds*/
-	s_rule_timeout_intval_jf = (s_watchdog_intval_jf << 1);
+	s_watchdog_intval_jf = msecs_to_jiffies(WATCHDOG_EXPIRED_INTVAL);	/*unit is millseconds*/
 	OS_SET_TIMER(&s_watchdog_tm, s_watchdog_intval_jf);
 	s_auth_cfg.status = AUTH_CONF_AVAILABLE;
 	return 0;
@@ -761,6 +769,8 @@ int auth_rule_init()
 void auth_rule_fini(void)
 {
 	auth_cfg_disable();
+	spin_lock_bh(&s_auth_cfg.lock);
 	clean_all_auth_rules();
 	clean_auth_if_infos();
+	spin_unlock_bh(&s_auth_cfg.lock);
 }
