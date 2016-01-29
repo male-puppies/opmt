@@ -5,7 +5,7 @@
 
 #define AUTH_USER_HASH_SIZE       (1 << 15)
 #define AUTH_USER_HASH_MASK       (AUTH_USER_HASH_SIZE - 1)
-#define WATCHDOG_EXPIRED_INTVAL		(300 * 1000)
+#define WATCHDOG_EXPIRED_INTVAL		(300 * 1000) /*millisecond*/
 
 struct auth_user_hash {
 	struct hlist_head slots[AUTH_USER_HASH_SIZE];
@@ -22,7 +22,7 @@ struct auth_user_set {
 };
 
 static struct timer_list s_watchdog_tm;	/*tm for forcing free timeout user*/
-static uint32_t s_watchdog_intval_jf = 0;	/*unit is microseconds*/
+static uint32_t s_watchdog_intval_jf = 0;	/*unit is millisecond*/
 static uint32_t s_user_off_intval_jf = 0;
 static uint32_t s_user_timeout_intval_jf = 0;
 static struct auth_user_hash s_user_hash;
@@ -292,7 +292,7 @@ int update_auth_user_status(struct user_node *user, int status)
 int kick_off_all_auth_auto_users(void)
 {
 	int i = 0, slot_idx = 0;
-	struct user_info *info = NULL;
+	//struct user_info *info = NULL;
 	struct user_node *user = NULL;
 	struct hlist_head *hslot = NULL;
 	spin_lock_bh(&s_user_hash.lock);
@@ -378,12 +378,11 @@ static void auth_user_watchdog_fn(unsigned long arg)
 #if DEBUG_ENABLE
 	uint32_t free_total = 0;
 #endif
-	uint32_t now_jf = 0;
+	uint32_t now_jf = jiffies;
 	uint16_t slot_idx = 0;
 	struct hlist_head *hslot = NULL;
 	struct user_node *user = NULL;
 	struct hlist_node *node = NULL;
-	now_jf = jiffies;
 
 	spin_lock_bh(&s_user_hash.lock);
 	for (slot_idx = 0; slot_idx < AUTH_USER_HASH_SIZE; slot_idx++) {
@@ -392,7 +391,7 @@ static void auth_user_watchdog_fn(unsigned long arg)
 			if ((now_jf - user->info.jf) >= s_user_timeout_intval_jf) {
 				#if DEBUG_ENABLE
 					free_total++;
-					AUTH_DEBUG("user del:%pI4h for timeout[last_jf:%llu, timeout_jf:%u, now_jf:%u].\n", 
+					AUTH_DEBUG("user del:%pI4h for timeout[last_jf:%lluu, timeout_jf:%u, now_jf:%u].\n", 
 								&user->info.ipv4, user->info.jf, s_user_timeout_intval_jf, now_jf);
 				#endif
 				auth_user_del(slot_idx, user);
@@ -432,13 +431,13 @@ static int watchdog_intval_valid_check(uint32_t mesc_intval)
 
 
 /*update the timeout of watchdog timer*/
-int watchdog_tm_update(uint32_t msesc_intval)
+int watchdog_tm_update(uint32_t msecs_intval)
 {
-	if (watchdog_intval_valid_check(msesc_intval) == 0) {
-		AUTH_WARN("WATCHDOG_EXPIRED_INTVAL[%u] invalid.\n", msesc_intval);
+	if (watchdog_intval_valid_check(msecs_intval) == 0) {
+		AUTH_WARN("WATCHDOG_EXPIRED_INTVAL[%u] invalid.\n", msecs_intval);
 		return -1;
 	}
-	s_watchdog_intval_jf = msecs_to_jiffies(msesc_intval / 2);
+	s_watchdog_intval_jf = msecs_to_jiffies(msecs_intval / 2);
 	s_user_off_intval_jf = (s_watchdog_intval_jf << 1);
 	s_user_timeout_intval_jf = (s_watchdog_intval_jf << 2);
 
@@ -462,7 +461,7 @@ int auth_user_init(void)
 	}
 	spin_lock_init(&s_user_hash.lock);
 
-	s_watchdog_intval_jf = msecs_to_jiffies(WATCHDOG_EXPIRED_INTVAL);	/*unit is microseconds*/
+	s_watchdog_intval_jf = msecs_to_jiffies(WATCHDOG_EXPIRED_INTVAL);	/*unit is millsecods*/
 	s_user_off_intval_jf = (s_watchdog_intval_jf << 1);
 	s_user_timeout_intval_jf = (s_watchdog_intval_jf << 2);
 	OS_SET_TIMER(&s_watchdog_tm, s_watchdog_intval_jf);

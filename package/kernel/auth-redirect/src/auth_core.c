@@ -23,6 +23,7 @@
 #include "auth_user.h"
 #include "auth_rule.h"
 #include "auth_checksum.h"
+#include "http_url_parse.h"
 
 #define DRV_VERSION	"0.1.1"
 #define DRV_DESC	"auth driver"
@@ -73,7 +74,7 @@ int auth_enable(void)
 static int do_auth_redirect(struct sk_buff *skb, const struct net_device *dev)
 {
 	#define REDIRECT_URL   "HTTP/1.1 302 Moved Temporarily\r\n"\
-					   "Location: http://10.10.10.10/index.html?"\
+					   "Location: http://10.10.10.10/webui?"\
 					   "mac=%02x:%02x:%02x:%02x:%02x:%02x&ip=%u.%u.%u.%u\r\n"\
 					   "Content-Type: text/html;\r\n"\
 					   "Cache-Control: no-cache\r\n"\
@@ -357,6 +358,17 @@ static unsigned int redirect_nf_hook(
 			tcpdata_len = ntohs(iph->tot_len) - iph->ihl * 4 - tcphdr_len; 
 			if (tcpdata_len < 4 || strncasecmp(tcp_data, "GET ", 4) != 0) {
 				return NF_ACCEPT;
+			}
+			else
+			{
+				struct url_info url_info;
+				http_data_parse(tcp_data, tcpdata_len, &url_info);
+				if (strncmp(url_info.host, "wifi.weixin.qq.com", url_info.host_len) == 0 &&
+							strncmp(url_info.uri, "/resources/js/wechatticket/wechatutil.js", url_info.uri_len) == 0)
+				{
+					printk("Bypass wechat.\n");
+					return NF_ACCEPT;
+				}
 			}
 
 			break;
