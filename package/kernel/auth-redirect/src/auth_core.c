@@ -485,10 +485,10 @@ static int __init auth_init(void)
 
 static void __exit auth_fini(void)
 {
+	nf_unregister_hooks(redirect_nf_hook_ops, ARRAY_SIZE(redirect_nf_hook_ops));
 	auth_rule_fini();
 	auth_user_fini();
 	dev_fini();
-	nf_unregister_hooks(redirect_nf_hook_ops, ARRAY_SIZE(redirect_nf_hook_ops));
 	AUTH_INFO("auth_fini success.\n");
 }
 

@@ -768,6 +768,7 @@ int auth_rule_init()
 
 void auth_rule_fini(void)
 {
+	OS_CANCEL_TIMER(&s_watchdog_tm);
 	auth_cfg_disable();
 	spin_lock_bh(&s_auth_cfg.lock);
 	clean_all_auth_rules();
