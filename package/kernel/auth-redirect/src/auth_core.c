@@ -74,7 +74,7 @@ int auth_enable(void)
 static int do_auth_redirect(struct sk_buff *skb, const struct net_device *dev)
 {
 	#define REDIRECT_URL   "HTTP/1.1 302 Moved Temporarily\r\n"\
-					   "Location: http://10.10.10.10/webui?"\
+					  "Location: http://172.16.0.1/webui?"\
 					   "mac=%02x:%02x:%02x:%02x:%02x:%02x&ip=%u.%u.%u.%u\r\n"\
 					   "Content-Type: text/html;\r\n"\
 					   "Cache-Control: no-cache\r\n"\
@@ -221,10 +221,42 @@ static int auth_redirect(struct sk_buff *skb, const struct net_device *in, const
 {
 	if (in) {
 		do_auth_redirect(skb, in);
+		//printk("redirect in:%s\n", in->name);
 	}
 
 	if (out) {
 		do_auth_reset(skb, out);
+		//printk("redirect out:%s\n", out->name);
+	}
+	return 0;
+}
+
+
+static int bypass_host(struct sk_buff *skb) 
+{
+	struct tcphdr *tcph = NULL;
+	int tcphdr_len = 0, tcpdata_len = 0;
+	char *tcp_data = NULL;
+	struct url_info url_info;
+
+	struct iphdr *iph = ip_hdr(skb);
+	if (iph->protocol != IPPROTO_TCP) {
+		return 0;
+	}
+
+	tcph = (struct tcphdr *)(skb->data + (iph->ihl << 2));
+	if (tcph->syn || tcph->fin || tcph->rst) {
+ 		return 0;
+	}
+
+	tcphdr_len = tcph->doff * 4;
+	tcp_data = (char*)tcph + tcphdr_len;
+	tcpdata_len = ntohs(iph->tot_len) - iph->ihl * 4 - tcphdr_len; 
+	http_data_parse(tcp_data, tcpdata_len, &url_info);
+	if (strncmp(url_info.host, "wifi.weixin.qq.com", url_info.host_len) == 0)
+	{
+		printk("Bypass wechat.\n");
+		return 1;
 	}
 	return 0;
 }
@@ -277,12 +309,15 @@ static unsigned int packet_process(struct sk_buff* skb, const struct net_device 
 			}
 		}
 	}
-
+	// printk("ret：%d, UserMac:%02X:%02X:%02X:%02X:%02X:%02X.\n",check_ret,
+ 	//	        info.mac[0],  info.mac[1],  info.mac[2],
+ 	//          info.mac[3],  info.mac[4],  info.mac[5]);
 	switch(check_ret) {
 		case AUTH_RULE_PASS:
 			return NF_ACCEPT;
 		
 		case AUTH_RULE_REDIRECT:
+			//create_mutable_rule(info.ipv4, WHITE, 6);
 			auth_redirect(skb, in, out);
 			return NF_DROP;
 
@@ -359,18 +394,7 @@ static unsigned int redirect_nf_hook(
 			if (tcpdata_len < 4 || strncasecmp(tcp_data, "GET ", 4) != 0) {
 				return NF_ACCEPT;
 			}
-			else
-			{
-				struct url_info url_info;
-				http_data_parse(tcp_data, tcpdata_len, &url_info);
-				if (strncmp(url_info.host, "wifi.weixin.qq.com", url_info.host_len) == 0 &&
-							strncmp(url_info.uri, "/resources/js/wechatticket/wechatutil.js", url_info.uri_len) == 0)
-				{
-					printk("Bypass wechat.\n");
-					return NF_ACCEPT;
-				}
-			}
-
+			
 			break;
 		}
 

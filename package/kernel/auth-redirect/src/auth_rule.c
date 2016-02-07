@@ -161,6 +161,11 @@ int add_auth_rule(struct auth_ip_rule_node *ip_rule_node, struct list_head *rule
 	struct list_head *cur = NULL, *pre = NULL;
 	struct auth_ip_rule_node *cur_node = NULL;
 
+	if (ip_rule_node->ip_rule.timeout) {
+		ip_rule_node->jf = jiffies + msecs_to_jiffies(ip_rule_node->ip_rule.timeout * 1000);
+		//printk("cur:%lu, expire:%lu\n", jiffies, ip_rule_node->jf);
+	}
+
 	if (list_empty(rule_list)) {
 		list_add(&ip_rule_node->rule_node, rule_list);
 		return 0;
@@ -172,9 +177,7 @@ int add_auth_rule(struct auth_ip_rule_node *ip_rule_node, struct list_head *rule
 			break;
 		}
 	}
-	if (ip_rule_node->ip_rule.timeout) {
-		ip_rule_node->jf = jiffies + msecs_to_jiffies(ip_rule_node->ip_rule.timeout * 1000);
-	}
+
 	list_add(&ip_rule_node->rule_node, cur);
 	return 0;
 }
@@ -442,6 +445,12 @@ OUT:
 			ip_rule_nodes = NULL;
 		}
 	}
+	else {
+		if (ip_rule_nodes) {
+			kfree(ip_rule_nodes);
+			ip_rule_nodes = NULL;
+		}
+	}
 	spin_unlock_bh(&s_auth_cfg.lock);
 	auth_cfg_enable();
 	if (no_mem) {
@@ -526,6 +535,42 @@ OUT:
 }
 
 
+int create_mutable_rule(uint32_t ipv4, uint8_t rule_type, uint16_t timeout)
+{
+	struct ip_range *ip_ranges = NULL;
+	struct auth_ip_rule_node *rule_node = NULL;
+	struct auth_ip_rule *rule = NULL;
+	rule_node = AUTH_NEW(struct auth_ip_rule_node);
+	if (rule_node == NULL) {
+		goto NO_MEM;
+	}
+	memset(rule_node, 0, sizeof(struct auth_ip_rule_node*));
+	INIT_LIST_HEAD(&rule_node->rule_node);
+
+	ip_ranges = (struct ip_range*)AUTH_NEW(struct ip_range);
+	if (ip_ranges == NULL) {
+		goto NO_MEM;
+	}
+	rule = &rule_node->ip_rule;
+	rule->type = rule_type;
+	rule->priority = 90;
+	rule->timeout = 3;
+	rule->ip_ranges = ip_ranges;
+	rule->ip_ranges->min = ipv4;
+	rule->ip_ranges->max = ipv4;
+	rule->nc_ip_range = 1;
+
+	spin_lock_bh(&s_auth_cfg.lock);
+	add_auth_rule(rule_node, &s_auth_cfg.mutable_rule_list);
+	spin_unlock_bh(&s_auth_cfg.lock);
+	return 0;
+NO_MEM:
+	if (rule_node) {
+		kfree(rule_node);
+	}
+	return -1; 
+}
+
 /**********************************auth_realted**********************************/
 /*FLOW_NEED_CHECK, FLOW_NONEED_CHECK*/
 int flow_dir_check(const char *inname, const char *outname) 
@@ -577,16 +622,9 @@ int flow_dir_check(const char *inname, const char *outname)
 	check_res = FLOW_NEED_CHECK;
 
 OUT:
-// #if DEBUG_ENABLE
-// 	if (check_res == FLOW_NEED_CHECK) {
-// 		AUTH_DEBUG("check_res=%s (in:%s, out:%s)\n", ("need check"), inname, outname);
-// 	}
-// #endif
 	spin_unlock_bh(&s_auth_cfg.lock);
 	return check_res;
 }
-
-
 
 
 /*First step,traversing auth rules until across a match rule or run over all rule.
@@ -597,8 +635,8 @@ int auth_rule_check(uint32_t ipv4, int *auth_type)
 	struct list_head *cur = NULL;
 	struct auth_ip_rule_node *cur_node = NULL;
 	struct auth_ip_rule *ip_rule = NULL;
-	spin_lock_bh(&s_auth_cfg.lock);
 
+	spin_lock_bh(&s_auth_cfg.lock);
 	if (!list_empty(&s_auth_cfg.mutable_rule_list)) {
 		list_for_each(cur, &s_auth_cfg.mutable_rule_list) {
 			cur_node = list_entry(cur, struct auth_ip_rule_node, rule_node);
@@ -682,7 +720,6 @@ static void mutable_rule_watchdog_fn(unsigned long arg)
 #if DEBUG_ENABLE
 	uint32_t free_total = 0;
 #endif
-	uint32_t now_jf = jiffies;
 	struct auth_ip_rule_node *rule_node = NULL;
 	struct list_head *rule_list = &s_auth_cfg.mutable_rule_list;
 	struct list_head *cur = NULL, *next = NULL;
@@ -695,9 +732,11 @@ static void mutable_rule_watchdog_fn(unsigned long arg)
 	/*notice: we cann't list entry directly.*/
 	list_for_each_safe(cur, next, rule_list) {
 		rule_node = list_entry(cur, struct auth_ip_rule_node, rule_node);
-		if (rule_node->jf > now_jf) {
+		if (time_after(rule_node->jf, jiffies)) {
 			continue;
 		}
+		// printk("free mutable rule [min:%pI4h], expire: %llu, cur:%llu.\n", 
+		// 	&rule_node->ip_rule.ip_ranges[0].min, rule_node->jf, jiffies);
 		list_del(cur);
 	#if DEBUG_ENABLE
 		free_total ++;

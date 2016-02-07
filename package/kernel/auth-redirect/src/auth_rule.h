@@ -33,5 +33,6 @@ int get_auth_cfg_status(void);
 int get_auth_option_bypass(void);
 void auth_cfg_enable(void);
 void auth_cfg_disable(void);
+int create_mutable_rule(uint32_t ipv4, uint8_t rule_type, uint16_t timeout);
 #endif
 
