@@ -261,6 +261,27 @@ static int bypass_host(struct sk_buff *skb)
 	return 0;
 }
 
+/*skb must be a Internet Protocol packet and un-null*/
+static unsigned int is_get_packet(struct sk_buff *skb) {
+	struct iphdr *iph = NULL;
+	struct tcphdr *tcph = NULL;
+	int tcphdr_len = 0, tcpdata_len = 0;
+	char *tcp_data = NULL;
+
+	iph = ip_hdr(skb);
+	if (iph->protocol != IPPROTO_TCP) { 
+		return 0;
+	}
+
+	tcph = (struct tcphdr *)(skb->data + (iph->ihl << 2));
+	tcphdr_len = tcph->doff * 4;
+	tcp_data = (char*)tcph + tcphdr_len;
+	tcpdata_len = ntohs(iph->tot_len) - iph->ihl * 4 - tcphdr_len; 
+	if (tcpdata_len < 4 || strncasecmp(tcp_data, "GET ", 4) != 0) {
+		return 0;
+	}
+	return 1;
+}
 
 static unsigned int packet_process(struct sk_buff* skb, const struct net_device *in, const struct net_device *out)
 {
@@ -317,9 +338,12 @@ static unsigned int packet_process(struct sk_buff* skb, const struct net_device 
 			return NF_ACCEPT;
 		
 		case AUTH_RULE_REDIRECT:
-			//create_mutable_rule(info.ipv4, WHITE, 6);
-			auth_redirect(skb, in, out);
-			return NF_DROP;
+			{//create_mutable_rule(info.ipv4, WHITE, 6);
+				if (is_get_packet(skb)) {
+					auth_redirect(skb, in, out);
+				}
+				return NF_DROP;
+			}
 
 		case AUTH_RULE_REJECT:
 			return NF_DROP;
@@ -387,14 +411,6 @@ static unsigned int redirect_nf_hook(
 			if (tcph->syn || tcph->fin || tcph->rst) {
 		 		return NF_ACCEPT;
 			}
-
-			tcphdr_len = tcph->doff * 4;
-			tcp_data = (char*)tcph + tcphdr_len;
-			tcpdata_len = ntohs(iph->tot_len) - iph->ihl * 4 - tcphdr_len; 
-			if (tcpdata_len < 4 || strncasecmp(tcp_data, "GET ", 4) != 0) {
-				return NF_ACCEPT;
-			}
-			
 			break;
 		}
 
