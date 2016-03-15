@@ -2,8 +2,6 @@
 
 cp build_config/build.config .config
 
-DATESTR=`date +%Y%m%d%H%M`
-
 for i in build_config/*.conf; do
 . $i
 echo $board
