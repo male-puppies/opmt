@@ -22,7 +22,17 @@ VERSION=`cat .config | grep CONFIG_VERSION_NUMBER | awk -F\" '{print $2}'`
 
 ls bin/ramips/*.bin | grep -v puppies | xargs rm >/dev/null 2>&1
 mkdir -p bin/ramips/BY
-echo mv bin/ramips/*$VERSION*puppies*bin bin/ramips/BY/$DIST-$VERSION
-mv bin/ramips/*$VERSION*puppies*bin bin/ramips/BY/$DIST-$VERSION
+echo mv bin/ramips/*$VERSION*puppies*bin bin/ramips/BY/UploadBrush-bin.img
+mv bin/ramips/*$VERSION*puppies*bin bin/ramips/BY/UploadBrush-bin.img
+
+BINMD5=`md5sum bin/ramips/BY/UploadBrush-bin.img | awk '{print $1}'`
+BINRANDOM=$bin_random
+RANDMD5=`echo -n $BINRANDOM | md5sum | awk '{print $1}'`
+echo -n ${BINMD5}${RANDMD5} | md5sum | awk '{print $1}' >  bin/ramips/BY/bin_random.txt
+cd  bin/ramips/BY/
+tar -zcf $DIST-$VERSION".tar.gz" UploadBrush-bin.img bin_random.txt
+rm UploadBrush-bin.img bin_random.txt
+mv $DIST-$VERSION".tar.gz" $DIST-$VERSION
+cd -
 
 done
