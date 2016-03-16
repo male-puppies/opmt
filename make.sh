@@ -26,7 +26,7 @@ echo mv bin/ramips/*$VERSION*puppies*bin bin/ramips/AC/UploadBrush-bin.img
 mv bin/ramips/*$VERSION*puppies*bin bin/ramips/AC/UploadBrush-bin.img
 
 BINMD5=`md5sum bin/ramips/AC/UploadBrush-bin.img | awk '{print $1}'`
-BINRANDOM=$bin_random
+BINRANDOM=${board}${bin_random}
 RANDMD5=`echo -n $BINRANDOM | md5sum | awk '{print $1}'`
 echo -n ${BINMD5}${RANDMD5} | md5sum | awk '{print $1}' >  bin/ramips/AC/bin_random.txt
 cd  bin/ramips/AC/
