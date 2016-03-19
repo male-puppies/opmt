@@ -121,6 +121,9 @@ static long auth_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned lo
 		case SIOCSIFINFO:
 			ret = do_set_auth_ifinfo(auth_arg);
 			break;
+		case SIOCSAUTHURLS:
+			ret = do_set_auth_urlinfo(auth_arg);
+			break;
 
 		case SIOCSDEBUGOPTIONS:
 			ret = do_set_debug_options(auth_arg);

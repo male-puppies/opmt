@@ -18,16 +18,24 @@ enum FLOW_DIR_CHECK_RES_CODE_E {
 	FLOW_NEED_CHECK = 1,
 };
 
+enum URL_CHECK_RES_CODE_E {
+	URL_UNPASS = 0,
+	URL_PASS = 1,
+};
+
+
 int auth_rule_init(void);
 void auth_rule_fini(void);
 
 int update_auth_rules(struct ioc_auth_ip_rule *ip_rules, uint32_t n_rule);
 int update_auth_options(struct auth_options *options);
 int update_auth_if_info(struct auth_if_info* if_info, uint16_t n_if);
+int update_auth_url_info(struct auth_url_info* url_info, uint16_t n_url);
 
 //int auth_rule_check(uint32_t ipv4);
 int auth_rule_check(uint32_t ipv4, int *auth_type);
 int flow_dir_check(const char *inname, const char *outname);
+int auth_url_check(const char *url, const uint8_t len);
 
 int get_auth_cfg_status(void);
 int get_auth_option_bypass(void);

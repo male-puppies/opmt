@@ -20,11 +20,17 @@ struct if_info_node {
 	struct auth_if_info if_info;
 };
 
+struct url_info_node {
+	struct list_head url_node;
+	struct auth_url_info url_info;
+};
+
 struct auth_rule_config {
 	struct list_head rule_list;
 	struct list_head mutable_rule_list;
 	struct auth_options auth_option;
 	struct list_head if_list;
+	struct list_head url_list;
 	enum AUTH_RULE_CONF_STAT_E status;
 	spinlock_t lock;
 };
@@ -535,6 +541,139 @@ OUT:
 }
 
 
+void display_auth_url_info(struct auth_url_info *url_info)
+{
+	AUTH_DEBUG("--------URL_INFO BEGIN---------\n");
+	AUTH_DEBUG("action: %d.\n", url_info->action);
+	AUTH_DEBUG("rul: %s.\n", url_info->url);
+	AUTH_DEBUG("--------IF_INFO END---------\n");
+}
+
+
+void display_auth_url_infos(void)
+{
+	struct list_head *cur = NULL;
+	struct url_info_node *url_node = NULL;
+	list_for_each(cur, &s_auth_cfg.url_list) {
+		url_node = list_entry(cur, struct url_info_node, url_node);
+		display_auth_url_info(&url_node->url_info);
+	}
+}
+
+
+int clean_auth_url_infos(void)
+{
+	struct url_info_node *url_node = NULL;
+	struct list_head *cur = NULL, *next = NULL;
+#if DEBUG_ENABLE
+	int free_cnt = 0;
+#endif
+
+	/*if don't check empty, will cause error.*/
+	if (list_empty(&s_auth_cfg.url_list)) {
+	#if DEBUG_ENABLE
+		AUTH_DEBUG("no net interface clean.\n");
+	#endif
+		return 0;
+	}
+	/*notice: we cann't list entry directly.*/
+	list_for_each_safe(cur, next, &s_auth_cfg.url_list) {
+		url_node = list_entry(cur, struct url_info_node, url_node);
+		list_del(cur);
+	#if DEBUG_ENABLE
+		display_auth_url_info(&url_node->url_info);
+		free_cnt ++;
+	#endif
+		kfree(url_node);
+		url_node = NULL;
+	}
+	INIT_LIST_HEAD(&s_auth_cfg.url_list);
+#if DEBUG_ENABLE
+	AUTH_DEBUG("Free %d net interface totally.\n", free_cnt);
+#endif
+	return 0;
+}
+
+
+static void add_auth_url_info(struct url_info_node *url_info_node)
+{
+	list_add_tail(&url_info_node->url_node, &s_auth_cfg.url_list);
+}
+
+
+static int copy_auth_url_info_to_node(struct url_info_node *url_info_node, struct auth_url_info *url_info)
+{
+	INIT_LIST_HEAD(&url_info_node->url_node);
+	url_info_node->url_info.action = url_info->action;
+	memcpy(url_info_node->url_info.url, url_info->url, BYPASS_RUL_LEN - 1);
+	return 0;
+}
+
+
+int update_auth_url_info(struct auth_url_info* url_info, uint16_t n_url)
+{
+	int i = 0, no_mem = 0;
+	struct url_info_node **url_info_nodes = NULL;
+
+	auth_cfg_disable();
+	spin_lock_bh(&s_auth_cfg.lock);
+	if (n_url == 0) {
+		clean_auth_url_infos();
+		goto OUT;
+	}
+	/*allocating n url_info node*/
+	url_info_nodes = AUTH_NEW_N(struct url_info_node *, n_url);
+	if (url_info_nodes == NULL) {
+		AUTH_ERROR("No memory.");
+		no_mem = 1;
+		goto OUT;
+	}
+	memset(url_info_nodes, 0, n_url * sizeof(struct url_info_node*));
+	for (i = 0; i < n_url; i++) {
+		url_info_nodes[i] = AUTH_NEW(struct url_info_node);
+		if (url_info_nodes[i] == NULL) {
+			AUTH_ERROR("No memory.");
+			no_mem = 1;
+			goto OUT;
+		}
+		INIT_LIST_HEAD(&url_info_nodes[i]->url_node);
+	}
+
+	/*free old rule_list*/
+	clean_auth_url_infos();
+
+	/*insert new rule*/
+	for (i = 0; i < n_url; i++) {
+		copy_auth_url_info_to_node(url_info_nodes[i], &url_info[i]);
+		add_auth_url_info(url_info_nodes[i]);
+	}
+
+#if DEBUG_ENABLE
+	display_auth_url_infos();
+#endif
+
+OUT:
+	if (no_mem) {
+		if (url_info_nodes) {
+			for (i = 0; i < n_url; i++) {
+				if (url_info_nodes[i]) {
+					kfree(url_info_nodes[i]);
+					url_info_nodes[i] = NULL;
+				}
+			}
+			kfree(url_info_nodes);
+			url_info_nodes = NULL;
+		}
+	}
+	spin_unlock_bh(&s_auth_cfg.lock);
+	auth_cfg_enable();
+	if (no_mem) {
+		return -1;
+	}
+	return 0;
+}
+
+
 int create_mutable_rule(uint32_t ipv4, uint8_t rule_type, uint16_t timeout)
 {
 	struct ip_range *ip_ranges = NULL;
@@ -626,6 +765,33 @@ OUT:
 	return check_res;
 }
 
+
+int auth_url_check(const char *url, const uint8_t len)
+{
+	struct list_head *cur = NULL;
+	struct url_info_node *cur_node = NULL;
+	struct auth_url_info *url_info = NULL;
+	int check_res = URL_UNPASS;
+	spin_lock_bh(&s_auth_cfg.lock);
+	if (list_empty(&s_auth_cfg.url_list)) {
+		check_res =  URL_UNPASS;
+		goto OUT;
+	}
+	list_for_each(cur, &s_auth_cfg.url_list) {
+		cur_node = list_entry(cur, struct url_info_node, url_node);
+		url_info = &cur_node->url_info;
+		if (url_info->action == 0) {
+			continue;
+		}
+		if (strncmp(url_info->url, url, len) == 0) {
+			check_res = URL_PASS;
+			break;
+		}
+	}
+OUT:
+	spin_unlock_bh(&s_auth_cfg.lock);
+	return check_res;
+}
 
 /*First step,traversing auth rules until across a match rule or run over all rule.
  *Second step, i.e, last step, return the process code.*/
@@ -796,6 +962,7 @@ int auth_rule_init()
 	INIT_LIST_HEAD(&s_auth_cfg.rule_list);
 	INIT_LIST_HEAD(&s_auth_cfg.mutable_rule_list);
 	INIT_LIST_HEAD(&s_auth_cfg.if_list);
+	INIT_LIST_HEAD(&s_auth_cfg.url_list);
 	spin_lock_init(&s_auth_cfg.lock);
 	OS_INIT_TIMER(&s_watchdog_tm, mutable_rule_watchdog_fn, NULL);
 	s_watchdog_intval_jf = msecs_to_jiffies(WATCHDOG_EXPIRED_INTVAL);	/*unit is millseconds*/
@@ -812,5 +979,6 @@ void auth_rule_fini(void)
 	spin_lock_bh(&s_auth_cfg.lock);
 	clean_all_auth_rules();
 	clean_auth_if_infos();
+	clean_auth_url_infos();
 	spin_unlock_bh(&s_auth_cfg.lock);
 }

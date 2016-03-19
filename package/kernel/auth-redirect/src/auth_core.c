@@ -232,35 +232,6 @@ static int auth_redirect(struct sk_buff *skb, const struct net_device *in, const
 }
 
 
-static int bypass_host(struct sk_buff *skb) 
-{
-	struct tcphdr *tcph = NULL;
-	int tcphdr_len = 0, tcpdata_len = 0;
-	char *tcp_data = NULL;
-	struct url_info url_info;
-
-	struct iphdr *iph = ip_hdr(skb);
-	if (iph->protocol != IPPROTO_TCP) {
-		return 0;
-	}
-
-	tcph = (struct tcphdr *)(skb->data + (iph->ihl << 2));
-	if (tcph->syn || tcph->fin || tcph->rst) {
- 		return 0;
-	}
-
-	tcphdr_len = tcph->doff * 4;
-	tcp_data = (char*)tcph + tcphdr_len;
-	tcpdata_len = ntohs(iph->tot_len) - iph->ihl * 4 - tcphdr_len; 
-	http_data_parse(tcp_data, tcpdata_len, &url_info);
-	if (strncmp(url_info.host, "wifi.weixin.qq.com", url_info.host_len) == 0)
-	{
-		printk("Bypass wechat.\n");
-		return 1;
-	}
-	return 0;
-}
-
 /*skb must be a Internet Protocol packet and un-null*/
 static unsigned int is_get_packet(struct sk_buff *skb) {
 	struct iphdr *iph = NULL;
@@ -283,6 +254,40 @@ static unsigned int is_get_packet(struct sk_buff *skb) {
 	return 1;
 }
 
+static int bypass_host(struct sk_buff *skb) 
+{
+	struct tcphdr *tcph = NULL;
+	int tcphdr_len = 0, tcpdata_len = 0;
+	char *tcp_data = NULL;
+	struct url_info url_info;
+	struct iphdr *iph = ip_hdr(skb);
+	
+	if (!is_get_packet(skb)) {
+		return 0;
+	}
+	if (iph->protocol != IPPROTO_TCP) {
+		return 0;
+	}
+
+	tcph = (struct tcphdr *)(skb->data + (iph->ihl << 2));
+	if (tcph->syn || tcph->fin || tcph->rst) {
+ 		return 0;
+	}
+
+	tcphdr_len = tcph->doff * 4;
+	tcp_data = (char*)tcph + tcphdr_len;
+	tcpdata_len = ntohs(iph->tot_len) - iph->ihl * 4 - tcphdr_len; 
+	http_data_parse(tcp_data, tcpdata_len, &url_info);
+	if (url_info.host &&  url_info.host_len) {
+		if (auth_url_check(url_info.host, url_info.host_len) == URL_PASS) {
+				printk("Bypass url.\n");
+				return 1;
+			}
+	}
+	return 0;
+}
+
+
 static unsigned int packet_process(struct sk_buff* skb, const struct net_device *in, const struct net_device *out)
 {
 	int check_ret = 0, auth_type = 0;
@@ -298,6 +303,9 @@ static unsigned int packet_process(struct sk_buff* skb, const struct net_device 
 		return NF_ACCEPT;
 	}
 
+	if (bypass_host(skb)) {
+		return NF_ACCEPT;
+	}
 	memcpy(info.mac, eth_header->h_source, ETH_ALEN);
 	info.ipv4 = ntohl(ip_header->saddr); 
 	user = auth_user_get(info.mac);
@@ -366,8 +374,6 @@ static unsigned int redirect_nf_hook(
 	struct tcphdr *tcph = NULL;
 	struct udphdr *udph = NULL;
 	struct sk_buff *linear_skb = NULL, *use_skb = NULL;
-	int tcphdr_len = 0, tcpdata_len = 0;
-	char *tcp_data = NULL;
 
 	/*if config isn't available, return directly.*/
 	if (get_auth_cfg_status() != AUTH_CONF_AVAILABLE) {

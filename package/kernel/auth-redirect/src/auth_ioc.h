@@ -8,12 +8,13 @@
 #define SIOCSUSRSTAT		0x102	/*set usr status*/
 #define SIOCGUSRSTAT		0x103	/*get usr status*/
 #define SIOCSIFINFO			0x104	/*set network interface*/
-#define SIOCSDEBUGOPTIONS	0x105	/*set debug options*/
+#define SIOCSAUTHURLS       0X105   /*set bypass url*/
+#define SIOCSDEBUGOPTIONS	0x106	/*set debug options*/
 
 #define	REDIRECT_URL_MAX		256
 #define REDIRECT_TITLE_MAX		128
 #define IF_NAME_MAX				32	
-
+#define BYPASS_RUL_LEN 	64
 #define ETH_ALEN				6
 
 #define IP_RULE_TYPE_NUM	3
@@ -80,6 +81,7 @@ enum ARG_TYPE_E {
 	USER_GSTAT	= 2,
 	USER_SSTAT	= 3,
 	NET_IF_INFO	= 4,
+	BYPASS_URL_INFO = 5,
 	/*add new type here*/
 	INVALID_ARG_TYPE,
 };
@@ -130,6 +132,12 @@ enum IF_TYPE_E {
 struct auth_if_info {
 	uint8_t 		type;
 	unsigned char 	if_name[IF_NAME_MAX];
+};
+
+/*url info*/
+struct auth_url_info {
+	uint8_t 		action;
+	unsigned char 	url[BYPASS_RUL_LEN];
 };
 
 /*ioctl cmd args*/

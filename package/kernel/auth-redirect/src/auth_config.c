@@ -59,6 +59,12 @@ static int auth_io_arg_check(struct auth_ioc_arg* arg, enum ARG_TYPE_E arg_type)
 			break;
 		}
 
+		case BYPASS_URL_INFO:
+		{	/*head + body, arg->nmu == 0 means cleaning if info*/
+			unit_len = sizeof(struct auth_url_info);
+			break;
+		}
+
 		default:
 		{
 			unit_len = 0;
@@ -130,6 +136,18 @@ int do_set_auth_ifinfo(struct auth_ioc_arg *arg)
 	}
 	data = (void*)arg + sizeof(struct auth_ioc_arg);
 	return update_auth_if_info((struct auth_if_info*)data, arg->num);
+}
+
+
+int do_set_auth_urlinfo(struct auth_ioc_arg *arg)
+{	
+	void *data = NULL;
+
+	if (auth_io_arg_check(arg, BYPASS_URL_INFO) != 0) {
+		return -1;
+	}
+	data = (void*)arg + sizeof(struct auth_ioc_arg);
+	return update_auth_url_info((struct auth_url_info*)data, arg->num);
 }
 
 int do_set_debug_options(struct auth_ioc_arg *arg)
