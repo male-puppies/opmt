@@ -279,7 +279,7 @@ static int bypass_host(struct sk_buff *skb)
 	tcpdata_len = ntohs(iph->tot_len) - iph->ihl * 4 - tcphdr_len; 
 	http_data_parse(tcp_data, tcpdata_len, &url_info);
 	if (url_info.host &&  url_info.host_len) {
-		if (auth_url_check(url_info.host, url_info.host_len) == URL_PASS) {
+		if (auth_url_check(&url_info) == URL_PASS) {
 				printk("Bypass url.\n");
 				return 1;
 			}

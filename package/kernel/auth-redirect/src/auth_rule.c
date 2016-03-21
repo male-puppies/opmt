@@ -545,7 +545,8 @@ void display_auth_url_info(struct auth_url_info *url_info)
 {
 	AUTH_DEBUG("--------URL_INFO BEGIN---------\n");
 	AUTH_DEBUG("action: %d.\n", url_info->action);
-	AUTH_DEBUG("rul: %s.\n", url_info->url);
+	AUTH_DEBUG("host: %s.\n", url_info->host);
+	AUTH_DEBUG("uri: %s.\n", url_info->uri);
 	AUTH_DEBUG("--------IF_INFO END---------\n");
 }
 
@@ -605,7 +606,10 @@ static int copy_auth_url_info_to_node(struct url_info_node *url_info_node, struc
 {
 	INIT_LIST_HEAD(&url_info_node->url_node);
 	url_info_node->url_info.action = url_info->action;
-	memcpy(url_info_node->url_info.url, url_info->url, BYPASS_RUL_LEN - 1);
+	url_info_node->url_info.host_len = url_info->host_len;
+	url_info_node->url_info.uri_len = url_info->uri_len;
+	memcpy(url_info_node->url_info.host, url_info->host, url_info->host_len + 1);
+	memcpy(url_info_node->url_info.uri, url_info->uri, url_info->uri_len + 1);
 	return 0;
 }
 
@@ -766,7 +770,33 @@ OUT:
 }
 
 
-int auth_url_check(const char *url, const uint8_t len)
+static int auth_url_match(struct auth_url_info *target, struct url_info *src)
+{
+	if (target->host_len != src->host_len) {
+		return 1;
+	}
+	if (strncmp(target->host, src->host, src->host_len) != 0) {
+		return 1;
+	}
+
+	if (src->uri_len < target->uri_len) {
+		return 1;
+	}
+	if (src->uri_len == target->uri_len 
+		&& strncmp(target->uri, src->uri, target->uri_len)) {
+		return 1;
+	}
+	/*www.baidu.com/abc , www.baidu.com/abc/js*/
+	if (strncmp(target->uri, src->uri, target->uri_len) == 0) {
+		if (src->uri[target->uri_len] != '/') {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+
+int auth_url_check(struct url_info *url_info_t)
 {
 	struct list_head *cur = NULL;
 	struct url_info_node *cur_node = NULL;
@@ -783,7 +813,7 @@ int auth_url_check(const char *url, const uint8_t len)
 		if (url_info->action == 0) {
 			continue;
 		}
-		if (strncmp(url_info->url, url, len) == 0) {
+		if (auth_url_match(url_info, url_info_t) == 0) {
 			check_res = URL_PASS;
 			break;
 		}

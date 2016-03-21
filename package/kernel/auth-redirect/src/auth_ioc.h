@@ -14,7 +14,8 @@
 #define	REDIRECT_URL_MAX		256
 #define REDIRECT_TITLE_MAX		128
 #define IF_NAME_MAX				32	
-#define BYPASS_RUL_LEN 	64
+#define BYPASS_URI_LEN 	64
+#define BYPASS_HOST_LEN 64
 #define ETH_ALEN				6
 
 #define IP_RULE_TYPE_NUM	3
@@ -137,7 +138,10 @@ struct auth_if_info {
 /*url info*/
 struct auth_url_info {
 	uint8_t 		action;
-	unsigned char 	url[BYPASS_RUL_LEN];
+	uint8_t 		host_len;
+	uint8_t 		uri_len;
+	unsigned char 	host[BYPASS_HOST_LEN]; /*null terminated*/
+	unsigned char 	uri[BYPASS_URI_LEN];	/*null terminated*/
 };
 
 /*ioctl cmd args*/

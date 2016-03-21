@@ -1,6 +1,6 @@
 #ifndef _AUTH_RULES_
 #define _AUTH_RULES_
-
+#include "http_url_parse.h"
 enum AUTH_RULE_CONF_STAT_E {
 	AUTH_CONF_UNAVAILABLE = 0,	/*unavaliable*/
 	AUTH_CONF_AVAILABLE= 1,	/*avaliable*/
@@ -35,7 +35,7 @@ int update_auth_url_info(struct auth_url_info* url_info, uint16_t n_url);
 //int auth_rule_check(uint32_t ipv4);
 int auth_rule_check(uint32_t ipv4, int *auth_type);
 int flow_dir_check(const char *inname, const char *outname);
-int auth_url_check(const char *url, const uint8_t len);
+int auth_url_check(struct url_info *url_info);
 
 int get_auth_cfg_status(void);
 int get_auth_option_bypass(void);
