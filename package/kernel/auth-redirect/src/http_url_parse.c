@@ -44,7 +44,7 @@ int http_get_data_parse(const unsigned char *data, int data_len, struct url_info
 
 		if (!(status & HTTP_GET_LINE) && strncasecmp(line_start, "GET ", 4) == 0)
 		{
-			if (strncasecmp(line_start + line_len - 9, " HTTP/x.x", 5) == 0)
+			if (line_len > 14 && strncasecmp(line_start + line_len - 9, " HTTP/x.x", 6) == 0)
 			{
 				_uri_len = line_len - 4 - 9;
 				_uri_start = line_start + 4;
@@ -117,7 +117,7 @@ int http_post_data_parse(const unsigned char *data, int data_len, struct url_inf
 
 		if (strncasecmp(line_start, "POST ", 5) == 0)
 		{
-			if (strncasecmp(line_start + line_len - 9, " HTTP/x.x", 5) == 0)
+			if (line_len > 15 && strncasecmp(line_start + line_len - 9, " HTTP/x.x", 6) == 0)
 			{
 				_uri_len = line_len - 5 - 9;
 				_uri_start = line_start + 5;

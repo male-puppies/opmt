@@ -454,7 +454,6 @@ int update_auth_rules(struct ioc_auth_ip_rule *ip_rules, uint32_t n_rule)
 	kick_off_all_auth_auto_users();
 OUT:
 	if (no_mem) {
-		printk("\n update rules -1 :");
 		if (ip_rule_nodes) {
 			for (i = 0; i < n_rule; i++) {
 				if (ip_rule_nodes[i]) {
@@ -471,20 +470,16 @@ OUT:
 		}
 	}
 	else {
-		printk("\n update rules -2 :");
 		if (ip_rule_nodes) {
 			kfree(ip_rule_nodes);
 			ip_rule_nodes = NULL;
 		}
 	}
-	printk("\n update rules 0 :");
 	spin_unlock_bh(&s_auth_cfg.lock);
 	auth_cfg_enable();
 	if (no_mem) {
-		printk("\n update rules 1 :");
 		return -1;
 	}
-	printk("\n update rules 2:");
 	return 0;
 }
 
@@ -809,7 +804,7 @@ static int auth_url_match(struct auth_url_info *target, struct url_info *src)
 	if (target->host_len != src->host_len) {
 		return 1;
 	}
-	if (strncmp(target->host, src->host, src->host_len) != 0) {
+	if (strncasecmp(target->host, src->host, src->host_len) != 0) {
 		return 1;
 	}
 
@@ -817,11 +812,11 @@ static int auth_url_match(struct auth_url_info *target, struct url_info *src)
 		return 1;
 	}
 
-	if (strncmp(target->uri, src->uri, target->uri_len) != 0) {
+	if (strncasecmp(target->uri, src->uri, target->uri_len) != 0) {
 		return 1;
 	}
 
-	/*www.baidu.com/abc , www.baidu.com/abc/js*/
+	/*www.baidu.com/abc , www.baidu.com/abc/e/js*/
 	if (target->uri_len < src->uri_len) {
 		if (src->uri[target->uri_len] != '/') {
 			return 1;
@@ -942,11 +937,14 @@ static int bypass_url(struct sk_buff *skb)
 	// printk("destination:");
 	// print_chars(url_info.host, url_info.host_len);
 	// print_chars(url_info.uri, url_info.uri_len);
-
-	if (url_info.host && url_info.uri) {
+	if (url_info.host_len > 0 && url_info.uri_len > 0) {
 		if (auth_url_check(&url_info) == URL_PASS) {
 			return 1;
 		}
+	}
+
+	if (url_info.host_len <= 0 || url_info.uri_len <= 0) {
+		return 1;
 	}
 	return 0;
 }
