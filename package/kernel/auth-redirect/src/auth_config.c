@@ -41,6 +41,7 @@ static int auth_io_arg_check(struct auth_ioc_arg* arg, enum ARG_TYPE_E arg_type)
 				goto INVALID;
 			}
 			unit_len = sizeof(struct user_stat_assist);
+			printk("user_gstat:unit_len=%d data_len=%d\n", unit_len, arg->data_len);
 			break;
 		}
 

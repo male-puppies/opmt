@@ -108,7 +108,7 @@ struct user_info {
 	uint16_t auth_type;
 	//unsigned char reserved[2];
 };
-#pragma pack()
+
 
 struct user_stat_assist {
 	uint16_t more;		/*more user stat info*/
@@ -119,7 +119,7 @@ struct user_stat_assist {
 	unsigned long addr; /*user_space addr*/
 };
 /*"assit + user_info" kernel copy to user*/
-
+#pragma pack()
 
 #define NET_IF_TYPE_NUM	3
 #define NET_IF_TYPE_STR_LEN 8
@@ -128,7 +128,7 @@ enum IF_TYPE_E {
 	WAN_E	= 1,
 	LOOP_E 	= 2,
 };
-
+#pragma pack(4)
 /*interface info*/
 struct auth_if_info {
 	uint8_t 		type;
@@ -138,10 +138,10 @@ struct auth_if_info {
 /*url info*/
 struct auth_url_info {
 	uint8_t 		action;
-	uint8_t 		host_len;
 	uint8_t 		uri_len;
-	unsigned char 	host[BYPASS_HOST_LEN]; /*null terminated*/
+	uint8_t 		host_len;
 	unsigned char 	uri[BYPASS_URI_LEN];	/*null terminated*/
+	unsigned char 	host[BYPASS_HOST_LEN]; /*null terminated*/
 };
 
 /*ioctl cmd args*/
@@ -151,5 +151,5 @@ struct auth_ioc_arg {
 	uint16_t	data_len;	/*num * sizeof element*/
 	/*element data body*/
 };
-
+#pragma pack()
 #endif

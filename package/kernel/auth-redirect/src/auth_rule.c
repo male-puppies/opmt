@@ -2,6 +2,24 @@
 #include "auth_ioc.h"
 #include "auth_rule.h"
 #include "auth_user.h"
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/netdevice.h>
+#include <uapi/linux/in.h>
+#include <linux/in.h>
+#include <uapi/linux/if_ether.h>
+#include <uapi/linux/ip.h>
+#include <linux/ip.h>
+#include <uapi/linux/tcp.h>
+#include <linux/udp.h>
+#include <linux/icmp.h>
+#include <net/ip.h>
+#include <net/tcp.h>
+#include <uapi/linux/netfilter_ipv4.h>
+#include <linux/netfilter.h>
+#include <linux/netfilter_bridge.h>
+#include <linux/string.h>
+
 
 #define WATCHDOG_EXPIRED_INTVAL		(5 * 1000) /*millisecond*/
 static struct timer_list s_watchdog_tm;			/*tm for forcing free timeout user*/
@@ -436,6 +454,7 @@ int update_auth_rules(struct ioc_auth_ip_rule *ip_rules, uint32_t n_rule)
 	kick_off_all_auth_auto_users();
 OUT:
 	if (no_mem) {
+		printk("\n update rules -1 :");
 		if (ip_rule_nodes) {
 			for (i = 0; i < n_rule; i++) {
 				if (ip_rule_nodes[i]) {
@@ -452,16 +471,20 @@ OUT:
 		}
 	}
 	else {
+		printk("\n update rules -2 :");
 		if (ip_rule_nodes) {
 			kfree(ip_rule_nodes);
 			ip_rule_nodes = NULL;
 		}
 	}
+	printk("\n update rules 0 :");
 	spin_unlock_bh(&s_auth_cfg.lock);
 	auth_cfg_enable();
 	if (no_mem) {
+		printk("\n update rules 1 :");
 		return -1;
 	}
+	printk("\n update rules 2:");
 	return 0;
 }
 
@@ -770,6 +793,17 @@ OUT:
 }
 
 
+static void print_chars(const unsigned char *str, int len)
+{
+	int i = 0;
+	if (str && len) {
+		for (i = 0; i < len; i++) {
+			printk("%c", str[i]);
+		}
+	}
+}
+
+
 static int auth_url_match(struct auth_url_info *target, struct url_info *src)
 {
 	if (target->host_len != src->host_len) {
@@ -782,19 +816,70 @@ static int auth_url_match(struct auth_url_info *target, struct url_info *src)
 	if (src->uri_len < target->uri_len) {
 		return 1;
 	}
-	if (src->uri_len == target->uri_len 
-		&& strncmp(target->uri, src->uri, target->uri_len)) {
+
+	if (strncmp(target->uri, src->uri, target->uri_len) != 0) {
 		return 1;
 	}
+
 	/*www.baidu.com/abc , www.baidu.com/abc/js*/
-	if (strncmp(target->uri, src->uri, target->uri_len) == 0) {
+	if (target->uri_len < src->uri_len) {
 		if (src->uri[target->uri_len] != '/') {
 			return 1;
 		}
 	}
+	printk("bypass host url:");
+	print_chars(src->host, src->host_len);
+	print_chars(src->uri, src->uri_len);
 	return 0;
 }
 
+
+/*skb must be a Internet Protocol packet and un-null*/
+static unsigned int is_get_packet(struct sk_buff *skb) {
+
+	struct iphdr *iph = NULL;
+	struct tcphdr *tcph = NULL;
+	int tcphdr_len = 0, tcpdata_len = 0;
+	char *tcp_data = NULL;
+	if (skb == NULL) {
+		return 0;
+	}
+	iph = ip_hdr(skb);
+	if (iph->protocol != IPPROTO_TCP) { 
+		return 0;
+	}
+
+	tcph = (struct tcphdr *)(skb->data + (iph->ihl << 2));
+	tcphdr_len = tcph->doff * 4;
+	tcp_data = (char*)tcph + tcphdr_len;
+	tcpdata_len = ntohs(iph->tot_len) - iph->ihl * 4 - tcphdr_len; 
+	if (tcpdata_len < 4 || strncasecmp(tcp_data, "GET ", 4) != 0) {
+		return 0;
+	}
+	return 1;
+}
+
+
+static unsigned int is_post_packet(struct sk_buff *skb) {
+	struct iphdr *iph = NULL;
+	struct tcphdr *tcph = NULL;
+	int tcphdr_len = 0, tcpdata_len = 0;
+	char *tcp_data = NULL;
+	iph = ip_hdr(skb);
+	if (iph->protocol != IPPROTO_TCP) { 
+		return 0;
+	}
+
+	tcph = (struct tcphdr *)(skb->data + (iph->ihl << 2));
+	tcphdr_len = tcph->doff * 4;
+	tcp_data = (char*)tcph + tcphdr_len;
+	tcpdata_len = ntohs(iph->tot_len) - iph->ihl * 4 - tcphdr_len; 
+
+	if (tcpdata_len < 5 || strncasecmp(tcp_data, "POST ", 5) != 0) {
+		return 0;
+	}
+	return 1;
+}
 
 int auth_url_check(struct url_info *url_info_t)
 {
@@ -802,7 +887,7 @@ int auth_url_check(struct url_info *url_info_t)
 	struct url_info_node *cur_node = NULL;
 	struct auth_url_info *url_info = NULL;
 	int check_res = URL_UNPASS;
-	spin_lock_bh(&s_auth_cfg.lock);
+	//spin_lock_bh(&s_auth_cfg.lock);
 	if (list_empty(&s_auth_cfg.url_list)) {
 		check_res =  URL_UNPASS;
 		goto OUT;
@@ -819,13 +904,57 @@ int auth_url_check(struct url_info *url_info_t)
 		}
 	}
 OUT:
-	spin_unlock_bh(&s_auth_cfg.lock);
+	//spin_unlock_bh(&s_auth_cfg.lock);
 	return check_res;
 }
 
+
+/*
+*非tcp数据一律不放通
+*非get/post tcp数据一律放通
+*满足要求的get post tcp数据放通
+*/
+static int bypass_url(struct sk_buff *skb) 
+{
+	struct tcphdr *tcph = NULL;
+	int tcphdr_len = 0, tcpdata_len = 0;
+	char *tcp_data = NULL;
+	struct url_info url_info = {.host= NULL, .uri = NULL, .host_len = 0 , .uri_len = 0};
+	struct iphdr *iph = ip_hdr(skb);
+
+	if (iph->protocol != IPPROTO_TCP) {
+		return 0;
+	}
+	tcph = (struct tcphdr *)(skb->data + (iph->ihl << 2));
+	tcphdr_len = tcph->doff * 4;
+	tcp_data = (char*)tcph + tcphdr_len;
+	tcpdata_len = ntohs(iph->tot_len) - iph->ihl * 4 - tcphdr_len; 
+	if (is_post_packet(skb)) {
+		http_post_data_parse(tcp_data, tcpdata_len, &url_info);
+	}
+	else if (is_get_packet(skb)) {
+		http_get_data_parse(tcp_data, tcpdata_len, &url_info);
+	}
+	else {
+		return 1;
+	}
+
+	// printk("destination:");
+	// print_chars(url_info.host, url_info.host_len);
+	// print_chars(url_info.uri, url_info.uri_len);
+
+	if (url_info.host && url_info.uri) {
+		if (auth_url_check(&url_info) == URL_PASS) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+
 /*First step,traversing auth rules until across a match rule or run over all rule.
  *Second step, i.e, last step, return the process code.*/
-int auth_rule_check(uint32_t ipv4, int *auth_type)
+int auth_rule_check(uint32_t ipv4, int *auth_type, struct sk_buff* skb)
 {
 	int i = 0, matched = 0, auth_res = AUTH_RULE_PASS;	/*default process is pass*/
 	struct list_head *cur = NULL;
@@ -843,8 +972,11 @@ int auth_rule_check(uint32_t ipv4, int *auth_type)
 					continue;
 				}
 				matched = 1;
-				AUTH_DEBUG("STA(%pI4h) match rule, bypass.\n",  &ipv4);
-				goto OUT;
+				/* 临时放通以后，才bypass指定uri*/
+				if (bypass_url(skb)) {
+					AUTH_DEBUG("STA(%pI4h) match rule, bypass.\n",  &ipv4);
+					goto OUT;
+				}
 			}
 			if (matched == 0) {
 				continue;

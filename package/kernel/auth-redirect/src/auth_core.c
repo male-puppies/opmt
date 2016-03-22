@@ -228,9 +228,9 @@ static int auth_redirect(struct sk_buff *skb, const struct net_device *in, const
 		do_auth_reset(skb, out);
 		//printk("redirect out:%s\n", out->name);
 	}
+	//printk("do redirect finished.\n");
 	return 0;
 }
-
 
 /*skb must be a Internet Protocol packet and un-null*/
 static unsigned int is_get_packet(struct sk_buff *skb) {
@@ -254,39 +254,6 @@ static unsigned int is_get_packet(struct sk_buff *skb) {
 	return 1;
 }
 
-static int bypass_host(struct sk_buff *skb) 
-{
-	struct tcphdr *tcph = NULL;
-	int tcphdr_len = 0, tcpdata_len = 0;
-	char *tcp_data = NULL;
-	struct url_info url_info;
-	struct iphdr *iph = ip_hdr(skb);
-	
-	if (!is_get_packet(skb)) {
-		return 0;
-	}
-	if (iph->protocol != IPPROTO_TCP) {
-		return 0;
-	}
-
-	tcph = (struct tcphdr *)(skb->data + (iph->ihl << 2));
-	if (tcph->syn || tcph->fin || tcph->rst) {
- 		return 0;
-	}
-
-	tcphdr_len = tcph->doff * 4;
-	tcp_data = (char*)tcph + tcphdr_len;
-	tcpdata_len = ntohs(iph->tot_len) - iph->ihl * 4 - tcphdr_len; 
-	http_data_parse(tcp_data, tcpdata_len, &url_info);
-	if (url_info.host &&  url_info.host_len) {
-		if (auth_url_check(&url_info) == URL_PASS) {
-				printk("Bypass url.\n");
-				return 1;
-			}
-	}
-	return 0;
-}
-
 
 static unsigned int packet_process(struct sk_buff* skb, const struct net_device *in, const struct net_device *out)
 {
@@ -302,10 +269,7 @@ static unsigned int packet_process(struct sk_buff* skb, const struct net_device 
 	if (flow_dir_check(in->name, out->name) == FLOW_NONEED_CHECK) {
 		return NF_ACCEPT;
 	}
-
-	if (bypass_host(skb)) {
-		return NF_ACCEPT;
-	}
+	
 	memcpy(info.mac, eth_header->h_source, ETH_ALEN);
 	info.ipv4 = ntohl(ip_header->saddr); 
 	user = auth_user_get(info.mac);
@@ -315,7 +279,7 @@ static unsigned int packet_process(struct sk_buff* skb, const struct net_device 
 			return NF_ACCEPT;
 		}
 		/*status changing from online to offline, need recheck auth rules.*/
-		check_ret = auth_rule_check(info.ipv4, &auth_type);
+		check_ret = auth_rule_check(info.ipv4, &auth_type, skb);
 		/*For old auto auth user, should change its statsu from offline to online*/
 		if (auth_type == AUTO_AUTH && check_ret == AUTH_RULE_PASS) {
 			update_auth_user_status(user, USER_ONLINE);
@@ -323,7 +287,7 @@ static unsigned int packet_process(struct sk_buff* skb, const struct net_device 
 		update_auth_user_auth_type(user, auth_type);
 	}
 	else {
-		check_ret = auth_rule_check(info.ipv4, &auth_type);
+		check_ret = auth_rule_check(info.ipv4, &auth_type, skb);
 		/*new web_auth user and auto auth user*/
 		if ((auth_type == WEB_AUTH && check_ret == AUTH_RULE_REDIRECT) || 
 			(auth_type == AUTO_AUTH && check_ret == AUTH_RULE_PASS)) {
@@ -346,7 +310,7 @@ static unsigned int packet_process(struct sk_buff* skb, const struct net_device 
 			return NF_ACCEPT;
 		
 		case AUTH_RULE_REDIRECT:
-			{//create_mutable_rule(info.ipv4, WHITE, 6);
+			{
 				if (is_get_packet(skb)) {
 					auth_redirect(skb, in, out);
 				}

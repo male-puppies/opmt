@@ -15,8 +15,8 @@ struct url_info {
 	int host_len;
 };
 
-extern int http_data_parse(const unsigned char *data, int data_len, struct url_info *url_info);
-
+extern int http_get_data_parse(const unsigned char *data, int data_len, struct url_info *url_info);
+extern int http_post_data_parse(const unsigned char *data, int data_len, struct url_info *url_info);
 static inline void dump_print(const unsigned char *data, int len)
 {
 	int i;

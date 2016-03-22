@@ -11,7 +11,7 @@
 
 #include "http_url_parse.h"
 
-int http_data_parse(const unsigned char *data, int data_len, struct url_info *url_info)
+int http_get_data_parse(const unsigned char *data, int data_len, struct url_info *url_info)
 {
 	const unsigned char *line_start = data;
 	int line_len = 0;
@@ -69,6 +69,80 @@ int http_data_parse(const unsigned char *data, int data_len, struct url_info *ur
 	url_info->host_len = 0;
 
 	if ((status & HTTP_GET_LINE) == HTTP_GET_LINE)
+	{
+		url_info->uri = _uri_start;
+		url_info->uri_len = _uri_len;
+	}
+
+	if ((status & HTTP_HOST_LINE) == HTTP_HOST_LINE)
+	{
+		url_info->host = _host_start;
+		url_info->host_len = _host_len;
+	}
+
+	return 0;
+}
+
+
+int http_post_data_parse(const unsigned char *data, int data_len, struct url_info *url_info)
+{
+	const unsigned char *line_start = data;
+	int line_len = 0;
+	int i = 0;
+	const unsigned char *_uri_start = NULL;
+	const unsigned char *_host_start = NULL;
+	int _uri_len = 0;
+	int _host_len = 0;
+
+#define HTTP_POST_LINE 0x1
+#define HTTP_HOST_LINE 0x7
+	unsigned long status = 0;
+
+	for (i = 0; i < data_len; i++)
+	{
+		if (line_start[line_len] != '\n')
+		{
+			line_len ++;
+			continue;
+		}
+		if (line_start[line_len - 1] == '\r')
+			line_len --;
+
+		if (line_len < 7/* POST / HTTP/1.1*/)
+		{
+			line_len = 0;
+			line_start = data + i + 1;
+			continue;
+		}
+
+		if (strncasecmp(line_start, "POST ", 5) == 0)
+		{
+			if (strncasecmp(line_start + line_len - 9, " HTTP/x.x", 5) == 0)
+			{
+				_uri_len = line_len - 5 - 9;
+				_uri_start = line_start + 5;
+				status |= HTTP_POST_LINE;
+			}
+		}
+		
+		if (strncasecmp(line_start, "Host: ", 6) == 0)
+		{
+			_host_len = line_len - 6;
+			_host_start = line_start + 6;
+			status |= HTTP_HOST_LINE;
+		}
+
+		if (status == (HTTP_POST_LINE|HTTP_HOST_LINE))
+			break;
+
+		line_len = 0;
+		line_start = data + i + 1;
+	}
+
+	url_info->uri_len = 0;
+	url_info->host_len = 0;
+
+	if ((status & HTTP_POST_LINE) == HTTP_POST_LINE)
 	{
 		url_info->uri = _uri_start;
 		url_info->uri_len = _uri_len;
