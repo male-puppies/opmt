@@ -1,9 +1,15 @@
-src-git packages https://github.com/openwrt/packages.git
-src-git luci https://github.com/openwrt/luci.git
+src-git packages https://github.com/male-puppies/packages.git
+src-git luci https://github.com/male-puppies/luci.git
 src-git routing https://github.com/openwrt-routing/packages.git
 src-git telephony https://github.com/openwrt/telephony.git
 src-git management https://github.com/openwrt-management/packages.git
 src-git targets https://github.com/openwrt/targets.git
+src-git puppies https://github.com/male-puppies/puppies.git
+src-git apop https://github.com/male-puppies/apop.git
+#src-svn svnlib https://192.168.0.210/svn/ztwk/7621/project/src/lib
+src-git zshell https://github.com/male-puppies/zshell.git
+
+#src-git firefly_packages https://github.com/FireWRT/OpenWrt-Firefly-Packages.git
 #src-git oldpackages http://git.openwrt.org/packages.git
 #src-svn xwrt http://x-wrt.googlecode.com/svn/trunk/package
 #src-svn phone svn://svn.openwrt.org/openwrt/feeds/phone
@@ -13,3 +19,4 @@ src-git targets https://github.com/openwrt/targets.git
 #src-svn xfce svn://svn.openwrt.org/openwrt/feeds/xfce
 #src-svn lxde svn://svn.openwrt.org/openwrt/feeds/lxde
 #src-link custom /usr/src/openwrt/custom-feed
+src-git ac_toolkit https://github.com/male-puppies/ac_toolkit.git

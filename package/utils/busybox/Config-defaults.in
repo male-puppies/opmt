@@ -1935,7 +1935,7 @@ config BUSYBOX_DEFAULT_WHOIS
 	default n
 config BUSYBOX_DEFAULT_FEATURE_IPV6
 	bool
-	default y
+	default n
 config BUSYBOX_DEFAULT_FEATURE_UNIX_LOCAL
 	bool
 	default n

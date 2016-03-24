@@ -37,7 +37,7 @@ endef
 define Build/trx-serial
 	$(STAGING_DIR_HOST)/bin/trx \
 		-o $@ \
-		-f $(word 1,$^) -a 1024 \
+		-f $(word 1,$^) -a 1024 -m 0x1000000 \
 		-f $(KDIR)/root.squashfs -a 0x10000 -A $(KDIR)/fs_mark
 endef
 
@@ -122,15 +122,15 @@ define Device/smartrg-sr400ac
 endef
 
 define Device/acx-m500
+  DT := acx-m500
+  BOARD_ID := UGW
   IMAGES := trx
   IMAGE/trx := trx-serial
 endef
 
 TARGET_DEVICES += \
-	buffalo-wzr-1750dhp buffalo-wzr-600dhp2 buffalo-wzr-900dhp \
 	buffalo-wxr-1900dhp \
-	netgear-r6250 netgear-r6300-v2 netgear-r8000 \
-	smartrg-sr400ac \
+	netgear-r6250 \
 	acx-m500
 
 $(eval $(call AsusDevice,rt-ac56u,RT-AC56U))

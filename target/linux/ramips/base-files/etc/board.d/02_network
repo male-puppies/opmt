@@ -156,11 +156,40 @@ ramips_setup_interfaces()
 		ucidef_add_switch_vlan "switch0" "1" "0 1 2 3 9t"
 		ucidef_add_switch_vlan "switch0" "2" "4 9t"
 		;;
-	d105|\
-	hpm|\
-	na930|\
-	wli-tx4-ag300n)
-		ucidef_set_interface_lan "eth0"
+	3g-6200n | \
+	ai-br100 | \
+	dir-610-a1 | \
+	dir-300-b7 | \
+	dir-320-b1 | \
+	dir-615-h1 | \
+	firewrt | \
+	puppies | \
+	pbr-m1 | \
+	hlk-rm04 | \
+	mt7621 | \
+	mt7628 | \
+	mzk-w300nh2 | \
+	mzk-750dhp | \
+	whr-300hp2 | \
+	whr-600d | \
+	oy-0001 | \
+	sap-g3200u3 | \
+	wsr-600 | \
+	wsr-1166 | \
+	wt1520 | \
+	xiaomi-miwifi-mini |\
+	y1)
+		ucidef_set_interfaces_lan_wan "eth0.1" "eth0.5"
+		ucidef_add_switch "switch0" "1" "1"
+		ucidef_add_switch_vlan "switch0" "1" "0 1 2 3 6t"
+		ucidef_add_switch_vlan "switch0" "5" "4 6t"
+		;;
+
+	whr-1166d)
+		ucidef_set_interfaces_lan_wan "eth0.1" "eth0.2"
+		ucidef_add_switch "switch0" "1" "1"
+		ucidef_add_switch_vlan "switch0" "1" "0 1 2 3 6t"
+		ucidef_add_switch_vlan "switch0" "2" "5 6t"
 		;;
 	e1700|\
 	mt7620a_mt7530)
