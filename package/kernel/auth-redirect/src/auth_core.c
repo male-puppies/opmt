@@ -228,7 +228,9 @@ static int auth_redirect(struct sk_buff *skb, const struct net_device *in, const
 		do_auth_reset(skb, out);
 		//printk("redirect out:%s\n", out->name);
 	}
-	//printk("do redirect finished.\n");
+	#if FREQ_DEBUG_ENABLE
+	AUTH_DEBUG("do redirect finished.\n");
+	#endif
 	return 0;
 }
 

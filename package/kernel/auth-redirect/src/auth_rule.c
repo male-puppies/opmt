@@ -19,7 +19,33 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter_bridge.h>
 #include <linux/string.h>
+#include <linux/ctype.h>
 
+#define URL_BYPASS 1
+#define URL_UNBYPASS 0
+#define URL_MATCH 1
+#define URL_MISMATCH 0
+#define HOST_MATCH 0
+#define HOST_MISMATCH 1
+#define DELIMETER '*'
+#define HOST_BUFF_SIZE 64
+static char buff_tar[HOST_BUFF_SIZE] = {0};
+static char buff_patt[HOST_BUFF_SIZE] = {0};
+
+enum pattern_type {
+	EXACT_MATCH ,
+	WILD_MATCH,
+	PRE_WILD_MATCH,
+	POS_WILD_MATCH,
+	/* new type add here*/
+	
+	INVALID_MATCH
+};
+
+struct pattern_info {
+	uint8_t pattern_len;
+	enum pattern_type pattern_t;
+};
 
 #define WATCHDOG_EXPIRED_INTVAL		(5 * 1000) /*millisecond*/
 static struct timer_list s_watchdog_tm;			/*tm for forcing free timeout user*/
@@ -796,36 +822,139 @@ static void print_chars(const unsigned char *str, int len)
 			printk("%c", str[i]);
 		}
 	}
+	printk("\n");
+}
+
+
+
+/*copy string splitted by DELIMETER*/
+/*format:[*abc, abc*, *abc*] */
+static char* fetch_pattern_info(char *src, uint8_t len, char *buf, uint8_t buf_size, struct pattern_info *info)
+{
+	uint8_t i = 0, cpy_len = 0, start = 0, end = len - 1;
+	enum pattern_type pattern_t = INVALID_MATCH;
+	for (i = 0; i < len && cpy_len < buf_size; i++)
+	{
+		if (src[i] != DELIMETER) 
+		{
+			if (start == cpy_len) { start = i;}
+			buf[cpy_len++] = tolower(src[i]);
+		}
+		else if (cpy_len != 0) 
+		{	/*the second DELIMETER*/
+			end = i - 1;
+			break;
+		}
+	}
+	buf[cpy_len] = '\0';
+	info->pattern_len = cpy_len;
+	if (start == 0 && end == (len - 1))  {
+		pattern_t = EXACT_MATCH;
+	} 
+	else if (start != 0 && end != (len - 1))  {
+		pattern_t = WILD_MATCH;
+	}
+	else if (start != 0 && end == (len - 1) ) {
+		pattern_t = PRE_WILD_MATCH;
+	}
+	else if (start == 0 && end != (len - 1))  {
+		pattern_t = POS_WILD_MATCH;
+	}
+	info->pattern_t = pattern_t;
+	return buf;
+}
+
+static int strncpy_safe(const char *src, uint8_t len, char *buf, uint8_t buf_size)
+{
+	uint8_t cpy_len = len > (buf_size - 1) ? (buf_size - 1): len;
+	memmove(buf, src, cpy_len);
+	buf[cpy_len] = '\0';
+	return cpy_len;
+}
+
+
+static int match_host(unsigned char *pattern, uint8_t pattern_len, const unsigned char *target, uint8_t target_len)
+{
+	struct pattern_info pattern_info = {.pattern_len = 0, .pattern_t = INVALID_MATCH};
+	enum pattern_type pattern_t = INVALID_MATCH;
+	uint8_t patt_cpy_len = 0, tar_cpy_len = 0, offset = 0, match_ret = HOST_MISMATCH;
+	if (pattern_len < 3 || target_len < 3) { /* xx.com/cn */
+		printk("%d:mismatch for invalid pattern\n", __LINE__);
+		return HOST_MISMATCH;
+	}
+	fetch_pattern_info(pattern, pattern_len, buff_patt, HOST_BUFF_SIZE, &pattern_info);
+	patt_cpy_len = pattern_info.pattern_len;
+	pattern_t = pattern_info.pattern_t;
+	
+	switch(pattern_t) {
+		case EXACT_MATCH:
+			{
+				tar_cpy_len = strncpy_safe(target, target_len, buff_tar, HOST_BUFF_SIZE);
+				if (strncasecmp(buff_patt, buff_tar, patt_cpy_len) == 0) {
+					match_ret = HOST_MATCH;
+				} 
+				break;
+			}
+		case WILD_MATCH:
+			{
+				tar_cpy_len = strncpy_safe(target, target_len, buff_tar, HOST_BUFF_SIZE);
+				if (strstr(buff_tar, buff_patt)) {
+					match_ret =  HOST_MATCH;
+				}
+				break;
+			}
+		case PRE_WILD_MATCH:
+			{
+				if (target_len >= patt_cpy_len) {
+					offset = target_len - patt_cpy_len;
+					tar_cpy_len = strncpy_safe(target + offset, patt_cpy_len, buff_tar, HOST_BUFF_SIZE);
+					if (strncasecmp(buff_patt, buff_tar, patt_cpy_len)  == 0) {
+						match_ret =  HOST_MATCH;
+					}
+				}
+				break;
+			}
+		case POS_WILD_MATCH:
+			{
+				if (target_len >= patt_cpy_len) {
+					tar_cpy_len = strncpy_safe(target, patt_cpy_len, buff_tar, HOST_BUFF_SIZE);
+					if (strncasecmp(buff_patt, buff_tar, patt_cpy_len)  == 0) {
+						match_ret =  HOST_MATCH;
+					}
+				}
+				break;
+			}
+		default: break;
+	}
+	return match_ret;
 }
 
 
 static int auth_url_match(struct auth_url_info *target, struct url_info *src)
 {
-	if (target->host_len != src->host_len) {
-		return 1;
-	}
-	if (strncasecmp(target->host, src->host, src->host_len) != 0) {
-		return 1;
+
+	if (match_host(target->host, target->host_len, src->host, src->host_len) == HOST_MISMATCH) {
+		return URL_MISMATCH;
 	}
 
 	if (src->uri_len < target->uri_len) {
-		return 1;
+		return URL_MISMATCH;
 	}
 
 	if (strncasecmp(target->uri, src->uri, target->uri_len) != 0) {
-		return 1;
+		return URL_MISMATCH;
 	}
 
 	/*www.baidu.com/abc , www.baidu.com/abc/e/js*/
 	if (target->uri_len < src->uri_len) {
 		if (src->uri[target->uri_len] != '/') {
-			return 1;
+			return URL_MISMATCH;
 		}
 	}
-	printk("bypass host url:");
-	print_chars(src->host, src->host_len);
-	print_chars(src->uri, src->uri_len);
-	return 0;
+	// printk("bypass host url:");
+	// print_chars(src->host, src->host_len);
+	// print_chars(src->uri, src->uri_len);
+	return URL_MATCH;
 }
 
 
@@ -893,7 +1022,7 @@ int auth_url_check(struct url_info *url_info_t)
 		if (url_info->action == 0) {
 			continue;
 		}
-		if (auth_url_match(url_info, url_info_t) == 0) {
+		if (auth_url_match(url_info, url_info_t) == URL_MATCH) {
 			check_res = URL_PASS;
 			break;
 		}
@@ -918,7 +1047,7 @@ static int bypass_url(struct sk_buff *skb)
 	struct iphdr *iph = ip_hdr(skb);
 
 	if (iph->protocol != IPPROTO_TCP) {
-		return 0;
+		return URL_UNBYPASS;
 	}
 	tcph = (struct tcphdr *)(skb->data + (iph->ihl << 2));
 	tcphdr_len = tcph->doff * 4;
@@ -931,22 +1060,19 @@ static int bypass_url(struct sk_buff *skb)
 		http_get_data_parse(tcp_data, tcpdata_len, &url_info);
 	}
 	else {
-		return 1;
+		return URL_BYPASS;
 	}
 
-	// printk("destination:");
-	// print_chars(url_info.host, url_info.host_len);
-	// print_chars(url_info.uri, url_info.uri_len);
 	if (url_info.host_len > 0 && url_info.uri_len > 0) {
 		if (auth_url_check(&url_info) == URL_PASS) {
-			return 1;
+			return URL_BYPASS;
 		}
 	}
 
 	if (url_info.host_len <= 0 || url_info.uri_len <= 0) {
-		return 1;
+		return URL_BYPASS;
 	}
-	return 0;
+	return URL_UNBYPASS;
 }
 
 
@@ -971,7 +1097,7 @@ int auth_rule_check(uint32_t ipv4, int *auth_type, struct sk_buff* skb)
 				}
 				matched = 1;
 				/* 临时放通以后，才bypass指定uri*/
-				if (bypass_url(skb)) {
+				if (bypass_url(skb) == URL_BYPASS) {
 					AUTH_DEBUG("STA(%pI4h) match rule, bypass.\n",  &ipv4);
 					goto OUT;
 				}
@@ -1029,7 +1155,7 @@ OUT:
 	spin_unlock_bh(&s_auth_cfg.lock);
 #if DEBUG_ENABLE
 	if (matched) {
-		AUTH_DEBUG("STA(%pI4h) match rule, check_res=%u.\n",  &ipv4, auth_res);
+		//AUTH_DEBUG("STA(%pI4h) match rule, check_res=%u.\n",  &ipv4, auth_res);
 	}
 	#if FREQ_DEBUG_ENABLE
 	else {

@@ -9,7 +9,8 @@ static int auth_io_arg_check(struct auth_ioc_arg* arg, enum ARG_TYPE_E arg_type)
 {
 	char arg_type_strs[ARG_TYPE_NUM][ARG_TYPE_STR_LEN] = 
 			{ {"AUTH_RULE"}, {"AUTH_OPTION"}, {"USER_GSTAT"},  
-			  {"USER_SSTAT"}, {"NET_IF_INFO"}, {"INVALID_ARG_TYPE"}
+			  {"USER_SSTAT"}, {"NET_IF_INFO"}, {"BYPASS_URL_INFO"},
+			  {"INVALID_ARG_TYPE"}
 			};
 	uint16_t len = 0, unit_len = 0;
 	if (arg->type != arg_type) {
@@ -41,7 +42,6 @@ static int auth_io_arg_check(struct auth_ioc_arg* arg, enum ARG_TYPE_E arg_type)
 				goto INVALID;
 			}
 			unit_len = sizeof(struct user_stat_assist);
-			printk("user_gstat:unit_len=%d data_len=%d\n", unit_len, arg->data_len);
 			break;
 		}
 

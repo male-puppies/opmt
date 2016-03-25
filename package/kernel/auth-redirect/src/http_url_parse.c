@@ -79,7 +79,8 @@ int http_get_data_parse(const unsigned char *data, int data_len, struct url_info
 		url_info->host = _host_start;
 		url_info->host_len = _host_len;
 	}
-
+#undef HTTP_GET_LINE 
+#undef HTTP_HOST_LINE 
 	return 0;
 }
 
@@ -153,7 +154,8 @@ int http_post_data_parse(const unsigned char *data, int data_len, struct url_inf
 		url_info->host = _host_start;
 		url_info->host_len = _host_len;
 	}
-
+#undef HTTP_POST_LINE 
+#undef HTTP_HOST_LINE 
 	return 0;
 }
 
