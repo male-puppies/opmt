@@ -282,6 +282,15 @@ int update_auth_user_auth_type(struct user_node *user, int type)
 }
 
 
+int get_auth_user_auth_type(struct user_node *user)
+{
+	if (user) {
+		return user->info.auth_type;
+	}
+	return UNKNOW_AUTH;
+}
+
+
 int update_auth_user_status(struct user_node *user, int status)
 {
 	user->info.status = status;

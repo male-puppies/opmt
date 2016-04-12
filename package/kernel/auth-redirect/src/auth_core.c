@@ -75,7 +75,7 @@ static int do_auth_redirect(struct sk_buff *skb, const struct net_device *dev)
 {
 	#define REDIRECT_URL   "HTTP/1.1 302 Moved Temporarily\r\n"\
 					  "Location: http://10.10.10.10/webui?"\
-					   "mac=%02x:%02x:%02x:%02x:%02x:%02x&ip=%u.%u.%u.%u\r\n"\
+					   "mac=%02x:%02x:%02x:%02x:%02x:%02x&ip=%u.%u.%u.%u&seed=%llu\r\n"\
 					   "Content-Type: text/html;\r\n"\
 					   "Cache-Control: no-cache\r\n"\
 					   "Content-Length: 0\r\n\r\n"
@@ -96,7 +96,7 @@ static int do_auth_redirect(struct sk_buff *skb, const struct net_device *dev)
 	snprintf(payload, sizeof(payload), REDIRECT_URL, 
 			old_eth->h_source[0], old_eth->h_source[1], old_eth->h_source[2],
 			old_eth->h_source[3], old_eth->h_source[4], old_eth->h_source[5],
-			NIPQUAD(old_iph->saddr));
+			NIPQUAD(old_iph->saddr), jiffies);
 	header_len = sizeof(struct ethhdr) + sizeof(struct iphdr) + sizeof(struct tcphdr);
 	nskb = alloc_skb(header_len + payload_len, GFP_ATOMIC);
 	if (!nskb) {
@@ -259,7 +259,7 @@ static unsigned int is_get_packet(struct sk_buff *skb) {
 
 static unsigned int packet_process(struct sk_buff* skb, const struct net_device *in, const struct net_device *out)
 {
-	int check_ret = 0, auth_type = 0;
+	int check_ret = 0, auth_type = UNKNOW_AUTH, pre_auth_type = UNKNOW_AUTH;
 	struct user_info info;
 	struct user_node *user; 
 	struct ethhdr *eth_header = (struct ethhdr *)skb_mac_header(skb);
@@ -281,12 +281,16 @@ static unsigned int packet_process(struct sk_buff* skb, const struct net_device 
 			return NF_ACCEPT;
 		}
 		/*status changing from online to offline, need recheck auth rules.*/
+		pre_auth_type = get_auth_user_auth_type(user);
 		check_ret = auth_rule_check(info.ipv4, &auth_type, skb);
 		/*For old auto auth user, should change its statsu from offline to online*/
 		if (auth_type == AUTO_AUTH && check_ret == AUTH_RULE_PASS) {
 			update_auth_user_status(user, USER_ONLINE);
 		}
-		update_auth_user_auth_type(user, auth_type);
+		if (pre_auth_type != auth_type && auth_type != UNKNOW_AUTH) {
+			update_auth_user_auth_type(user, auth_type);
+			AUTH_DEBUG("Sta(%pI4h) auth_type from %d to %d\n", &info.ipv4, pre_auth_type, auth_type);
+		}
 	}
 	else {
 		check_ret = auth_rule_check(info.ipv4, &auth_type, skb);

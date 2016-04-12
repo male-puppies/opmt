@@ -134,15 +134,20 @@ void display_auth_ip_rules(void)
 {
 	struct list_head *cur = NULL;
 	struct auth_ip_rule_node *rule_node = NULL;
+	AUTH_DEBUG("--------MUTABLE RULES START:---------\n");
 	list_for_each(cur, &s_auth_cfg.mutable_rule_list) {
 		rule_node = list_entry(cur, struct auth_ip_rule_node, rule_node);
 		display_auth_ip_rule(&rule_node->ip_rule);
 	}
+	AUTH_DEBUG("--------MUTABLE RULES END:---------\n\n");
+
+	AUTH_DEBUG("--------STALBE RULES START:---------\n");
 
 	list_for_each(cur, &s_auth_cfg.rule_list) {
 		rule_node = list_entry(cur, struct auth_ip_rule_node, rule_node);
 		display_auth_ip_rule(&rule_node->ip_rule);
 	}
+	AUTH_DEBUG("--------STALBE RULES END:---------\n\n");
 }
 
 
@@ -470,7 +475,6 @@ int update_auth_rules(struct ioc_auth_ip_rule *ip_rules, uint32_t n_rule)
 		add_auth_rule(ip_rule_nodes[i], rule_list);
 		offset = cur_rule->nc_ip_range * sizeof(struct ip_range) + sizeof(struct ioc_auth_ip_rule);
 		cur_rule = (struct ioc_auth_ip_rule*)((void*)cur_rule + offset);
-		AUTH_DEBUG("newt_rule:%p. offset:%x\n", cur_rule, offset);
 	}
 
 #if DEBUG_ENABLE
@@ -1085,6 +1089,7 @@ int auth_rule_check(uint32_t ipv4, int *auth_type, struct sk_buff* skb)
 	struct auth_ip_rule_node *cur_node = NULL;
 	struct auth_ip_rule *ip_rule = NULL;
 
+	*auth_type = UNKNOW_AUTH;
 	spin_lock_bh(&s_auth_cfg.lock);
 	if (!list_empty(&s_auth_cfg.mutable_rule_list)) {
 		list_for_each(cur, &s_auth_cfg.mutable_rule_list) {
@@ -1113,7 +1118,7 @@ int auth_rule_check(uint32_t ipv4, int *auth_type, struct sk_buff* skb)
 		*auth_type = UNKNOW_AUTH;
 		return auth_res;
 	}
-
+	matched = 0;
 	list_for_each(cur, &s_auth_cfg.rule_list) {
 		cur_node = list_entry(cur, struct auth_ip_rule_node, rule_node);
 		if (cur_node->ip_rule.enable == 0) {
@@ -1131,6 +1136,7 @@ int auth_rule_check(uint32_t ipv4, int *auth_type, struct sk_buff* skb)
 		if (matched == 0) {
 			continue;
 		}
+
 		switch (ip_rule->type) {
 			case NORMAL:
 				*auth_type = WEB_AUTH;
