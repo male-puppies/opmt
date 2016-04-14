@@ -25,6 +25,12 @@ enum URL_CHECK_RES_CODE_E {
 };
 
 
+enum AUTH_STEP_E {
+	AUTH_STEP1 = 1,
+	AUTH_STEP2 = 2,
+};
+
+
 int auth_rule_init(void);
 void auth_rule_fini(void);
 
@@ -36,7 +42,7 @@ int update_auth_url_info(struct auth_url_info* url_info, uint16_t n_url);
 //int auth_rule_check(uint32_t ipv4);
 int auth_rule_check(uint32_t ipv4, int *auth_type, struct sk_buff* skb);
 int flow_dir_check(const char *inname, const char *outname);
-int auth_url_check(struct url_info *url_info);
+int auth_url_check(struct url_info *url_info_t, uint8_t step);
 
 int get_auth_cfg_status(void);
 int get_auth_option_bypass(void);

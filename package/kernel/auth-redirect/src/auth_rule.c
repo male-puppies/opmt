@@ -21,6 +21,8 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 
+#define PORT_BYPASS 1
+#define PORT_UNPASS 0
 #define URL_BYPASS 1
 #define URL_UNBYPASS 0
 #define URL_MATCH 1
@@ -122,6 +124,7 @@ static void display_auth_ip_rule(struct auth_ip_rule *ip_rule)
 	AUTH_DEBUG("PRIORITY of ip rule: %d.\n", ip_rule->priority);
 	AUTH_DEBUG("ENABLE of ip rule: %d.\n", ip_rule->enable);
 	AUTH_DEBUG("TIMEOUT of ip rule: %d.\n", ip_rule->timeout);
+	AUTH_DEBUG("Step of ip rule: %d.\n", ip_rule->step);
 	for (i = 0; i < ip_rule->nc_ip_range; i++) {
 		AUTH_DEBUG("[min:%pI4h  --> max:%pI4h].\n", &ip_rule->ip_ranges[i].min, &ip_rule->ip_ranges[i].max);
 		AUTH_DEBUG("[min:%u  --> max:%u].\n", ip_rule->ip_ranges[i].min, ip_rule->ip_ranges[i].max);
@@ -268,6 +271,7 @@ int copy_auth_ip_rule_to_node(struct auth_ip_rule_node *rule_node,
 	dst_ip_rule->priority = ip_rule->priority;
 	dst_ip_rule->timeout = ip_rule->timeout;
 	dst_ip_rule->enable = ip_rule->enable;
+	dst_ip_rule->step = ip_rule->step;
 	return 0;
 }
 
@@ -595,6 +599,7 @@ void display_auth_url_info(struct auth_url_info *url_info)
 	AUTH_DEBUG("action: %d.\n", url_info->action);
 	AUTH_DEBUG("host: %s.\n", url_info->host);
 	AUTH_DEBUG("uri: %s.\n", url_info->uri);
+	AUTH_DEBUG("step: %d.\n", url_info->step);
 	AUTH_DEBUG("--------IF_INFO END---------\n");
 }
 
@@ -658,6 +663,7 @@ static int copy_auth_url_info_to_node(struct url_info_node *url_info_node, struc
 	url_info_node->url_info.uri_len = url_info->uri_len;
 	memcpy(url_info_node->url_info.host, url_info->host, url_info->host_len + 1);
 	memcpy(url_info_node->url_info.uri, url_info->uri, url_info->uri_len + 1);
+	url_info_node->url_info.step = url_info->step;
 	return 0;
 }
 
@@ -993,6 +999,10 @@ static unsigned int is_post_packet(struct sk_buff *skb) {
 	struct tcphdr *tcph = NULL;
 	int tcphdr_len = 0, tcpdata_len = 0;
 	char *tcp_data = NULL;
+
+	if (skb == NULL) {
+		return 0;
+	}
 	iph = ip_hdr(skb);
 	if (iph->protocol != IPPROTO_TCP) { 
 		return 0;
@@ -1009,7 +1019,7 @@ static unsigned int is_post_packet(struct sk_buff *skb) {
 	return 1;
 }
 
-int auth_url_check(struct url_info *url_info_t)
+int auth_url_check(struct url_info *url_info_t, uint8_t step)
 {
 	struct list_head *cur = NULL;
 	struct url_info_node *cur_node = NULL;
@@ -1023,7 +1033,7 @@ int auth_url_check(struct url_info *url_info_t)
 	list_for_each(cur, &s_auth_cfg.url_list) {
 		cur_node = list_entry(cur, struct url_info_node, url_node);
 		url_info = &cur_node->url_info;
-		if (url_info->action == 0) {
+		if (url_info->action == 0 || url_info->step != step) {
 			continue;
 		}
 		if (auth_url_match(url_info, url_info_t) == URL_MATCH) {
@@ -1037,12 +1047,25 @@ OUT:
 }
 
 
+static int bypass_tcp_sevice(uint16_t port)
+{
+	uint16_t ports[] = {80, 443};
+	uint16_t i = 0;
+	for (i = 0; i < sizeof(ports)/sizeof(uint16_t); i++) {
+		if (port == ports[i]) {
+			return PORT_BYPASS;
+		}
+	}
+	return PORT_UNPASS;
+}
+
+
 /*
 *非tcp数据一律不放通
 *非get/post tcp数据一律放通
 *满足要求的get post tcp数据放通
 */
-static int bypass_url(struct sk_buff *skb) 
+static int bypass_url(struct sk_buff *skb, uint8_t step) 
 {
 	struct tcphdr *tcph = NULL;
 	int tcphdr_len = 0, tcpdata_len = 0;
@@ -1064,11 +1087,17 @@ static int bypass_url(struct sk_buff *skb)
 		http_get_data_parse(tcp_data, tcpdata_len, &url_info);
 	}
 	else {
-		return URL_BYPASS;
+	 	if (step == AUTH_STEP2) {	/*step2的tcp数据放通*/
+	 		// if(bypass_tcp_sevice(ntohs(tcph->dest)) == PORT_BYPASS) {
+	 		// 	return URL_BYPASS;
+			 // }	
+			 return URL_BYPASS;
+		 }
+		return URL_UNBYPASS;
 	}
 
 	if (url_info.host_len > 0 && url_info.uri_len > 0) {
-		if (auth_url_check(&url_info) == URL_PASS) {
+		if (auth_url_check(&url_info, step) == URL_PASS) {
 			return URL_BYPASS;
 		}
 	}
@@ -1100,16 +1129,14 @@ int auth_rule_check(uint32_t ipv4, int *auth_type, struct sk_buff* skb)
 				if (ipv4 < ip_rule->ip_ranges[i].min || ipv4 > ip_rule->ip_ranges[i].max) {
 					continue;
 				}
-				matched = 1;
 				/* 临时放通以后，才bypass指定uri*/
-				if (bypass_url(skb) == URL_BYPASS) {
+				if (bypass_url(skb, ip_rule->step) == URL_BYPASS) {
 					AUTH_DEBUG("STA(%pI4h) match rule, bypass.\n",  &ipv4);
 					goto OUT;
 				}
+				break;
 			}
-			if (matched == 0) {
-				continue;
-			}
+			/*同一sta存在多条临时规则，此处不能break*/
 		}
 	}
 
@@ -1160,9 +1187,9 @@ int auth_rule_check(uint32_t ipv4, int *auth_type, struct sk_buff* skb)
 OUT:
 	spin_unlock_bh(&s_auth_cfg.lock);
 #if DEBUG_ENABLE
-	if (matched) {
-		//AUTH_DEBUG("STA(%pI4h) match rule, check_res=%u.\n",  &ipv4, auth_res);
-	}
+	// if (matched) {
+	// 	AUTH_DEBUG("STA(%pI4h) match rule, check_res=%u.\n",  &ipv4, auth_res);
+	// }
 	#if FREQ_DEBUG_ENABLE
 	else {
 		AUTH_DEBUG("STA(%pI4h) unmatch any rule, pass in default.\n",  &ipv4);

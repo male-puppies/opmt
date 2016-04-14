@@ -50,6 +50,7 @@ struct auth_ip_rule
 	uint32_t 	timeout;
 	struct ip_range *ip_ranges;
 	uint32_t 	nc_ip_range;
+	uint8_t 	step;
 };
 
 struct ioc_auth_ip_rule {
@@ -58,6 +59,7 @@ struct ioc_auth_ip_rule {
 	uint32_t	enable;
 	uint32_t 	priority;
 	uint32_t 	timeout;
+	uint8_t 	step;
 	uint32_t 	nc_ip_range;
 	/*struct ip_range *ip_ranges*/
 };
@@ -142,6 +144,7 @@ struct auth_url_info {
 	uint8_t 		host_len;
 	unsigned char 	uri[BYPASS_URI_LEN];	/*null terminated*/
 	unsigned char 	host[BYPASS_HOST_LEN]; /*null terminated*/
+	uint8_t			step;
 };
 
 /*ioctl cmd args*/

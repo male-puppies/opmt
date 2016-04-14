@@ -406,7 +406,6 @@ static unsigned int redirect_nf_hook(
 		{
 			break;
 		}
-
 	}
 
 	/*这里如果不线性化检查, OUTPUT抓取的数据包, 数据区可能为空.*/
