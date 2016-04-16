@@ -275,28 +275,42 @@ struct user_node *auth_user_add(struct user_info *user_info)
 	return user;
 }
 
+
 int update_auth_user_auth_type(struct user_node *user, int type)
 {
-	user->info.auth_type = type;
+	if (user) {
+		user->info.auth_type = type;
+	}
 	return 0;
 }
 
 
 int get_auth_user_auth_type(struct user_node *user)
 {
-	if (user) {
-		return user->info.auth_type;
-	}
-	return UNKNOW_AUTH;
+	return user?user->info.auth_type:UNKNOW_AUTH;
 }
 
 
 int update_auth_user_status(struct user_node *user, int status)
 {
-	user->info.status = status;
+	if (user && user->info.status != status) {
+		user->info.status = status;
+	}
 	return 0;
 }
 
+int update_auth_user_ipv4(struct user_node *user, uint32_t ipv4)
+{
+	if (user && user->info.ipv4 != ipv4) {
+		user->info.ipv4 = ipv4;
+	}
+	return 0;
+}
+
+uint32_t get_auth_user_ipv4(struct user_node *user)
+{
+	return user?user->info.ipv4 : 0;
+}
 
 int kick_off_all_auth_auto_users(void)
 {
@@ -329,6 +343,9 @@ int update_auth_users_stat(struct user_info *infos, uint16_t nc_user)
 #if DEBUG_ENABLE
 	char user_status[USER_STATUS_NUM][USER_STATUS_STR_LEN] = { {"OFFLINE"}, {"ONLINE"},};
 #endif
+	if (infos == NULL || nc_user == 0) {
+		return 0;
+	}
 	for (i = 0; i < nc_user; i++) {
 		user = auth_user_get(infos[i].mac);
 		/*maybe a nonexistence user*/
@@ -349,7 +366,9 @@ int update_auth_users_stat(struct user_info *infos, uint16_t nc_user)
 
 int update_auth_user_active_tm(struct user_node *user)
 {
-	user->info.jf = jiffies;
+	if (user) {
+		user->info.jf = jiffies; 
+	}
 	return 0;
 }
 

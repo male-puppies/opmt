@@ -34,6 +34,8 @@ void display_user(struct user_node *user);
 int update_auth_user_auth_type(struct user_node *user, int type);
 int get_auth_user_auth_type(struct user_node *user);
 int update_auth_user_status(struct user_node *user, int status);
+int update_auth_user_ipv4(struct user_node *user, uint32_t ipv4);
+uint32_t get_auth_user_ipv4(struct user_node *user);
 int update_auth_users_stat(struct user_info *infos, uint16_t nc_user);
 int update_auth_user_active_tm(struct user_node *user);
 int kick_off_all_auth_auto_users(void);

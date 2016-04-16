@@ -276,6 +276,12 @@ static unsigned int packet_process(struct sk_buff* skb, const struct net_device 
 	info.ipv4 = ntohl(ip_header->saddr); 
 	user = auth_user_get(info.mac);
 	if (user) {
+		uint32_t ipv4 = get_auth_user_ipv4(user);
+		if (ipv4 != 0 && ipv4 != info.ipv4) {
+			AUTH_DEBUG("Sta:ip change from (%pI4h) to (%pI4h), force offline\n", &ipv4, &info.ipv4);
+			update_auth_user_ipv4(user, info.ipv4);
+			update_auth_user_status(user, USER_OFFLINE);
+		}
 		if (auth_user_status(user) == USER_ONLINE) {
 			update_auth_user_active_tm(user);
 			return NF_ACCEPT;
