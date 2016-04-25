@@ -944,27 +944,30 @@ static int auth_url_match(struct auth_url_info *target, struct url_info *src)
 {
 
 	if (match_host(target->host, target->host_len, src->host, src->host_len) == HOST_MISMATCH) {
+		printk("mismatch host:");
+		print_chars(src->host, src->host_len);
 		return URL_MISMATCH;
 	}
-
-	if (src->uri_len < target->uri_len) {
-		return URL_MISMATCH;
-	}
-
-	if (strncasecmp(target->uri, src->uri, target->uri_len) != 0) {
-		return URL_MISMATCH;
-	}
-
-	/*www.baidu.com/abc , www.baidu.com/abc/e/js*/
-	if (target->uri_len < src->uri_len) {
-		if (src->uri[target->uri_len] != '/') {
-			return URL_MISMATCH;
-		}
-	}
-	// printk("bypass host url:");
-	// print_chars(src->host, src->host_len);
-	// print_chars(src->uri, src->uri_len);
 	return URL_MATCH;
+	//取消匹配url，暂时不处理包含host的url请求
+	// if (src->uri_len < target->uri_len) {
+	// 	return URL_MISMATCH;
+	// }
+
+	// if (strncasecmp(target->uri, src->uri, target->uri_len) != 0) {
+	// 	return URL_MISMATCH;
+	// }
+
+	// //www.baidu.com/abc , www.baidu.com/abc/e/js
+	// if (target->uri_len < src->uri_len) {
+	// 	if (src->uri[target->uri_len] != '/') {
+	// 		return URL_MISMATCH;
+	// 	}
+	// }
+	// // printk("bypass host url:");
+	// // print_chars(src->host, src->host_len);
+	// // print_chars(src->uri, src->uri_len);
+	// return URL_MATCH;
 }
 
 
