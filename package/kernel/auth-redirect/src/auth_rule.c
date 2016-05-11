@@ -1098,14 +1098,15 @@ static int bypass_url(struct sk_buff *skb, uint8_t step)
 		 }
 		return URL_UNBYPASS;
 	}
-
-	if (url_info.host_len > 0 && url_info.uri_len > 0) {
+	/*uri_len长度可以为0*/
+	if (url_info.host_len > 0 && url_info.uri_len >= 0) {
 		if (auth_url_check(&url_info, step) == URL_PASS) {
 			return URL_BYPASS;
 		}
+		return URL_UNBYPASS;
 	}
-
-	if (url_info.host_len <= 0 || url_info.uri_len <= 0) {
+	/*解析失败，直接放通*/
+	if (url_info.host_len <= 0 || url_info.uri_len < 0) {
 		return URL_BYPASS;
 	}
 	return URL_UNBYPASS;
