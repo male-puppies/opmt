@@ -626,7 +626,7 @@ int clean_auth_url_infos(void)
 	/*if don't check empty, will cause error.*/
 	if (list_empty(&s_auth_cfg.url_list)) {
 	#if DEBUG_ENABLE
-		AUTH_DEBUG("no net interface clean.\n");
+		AUTH_DEBUG("no url clean.\n");
 	#endif
 		return 0;
 	}
@@ -643,7 +643,7 @@ int clean_auth_url_infos(void)
 	}
 	INIT_LIST_HEAD(&s_auth_cfg.url_list);
 #if DEBUG_ENABLE
-	AUTH_DEBUG("Free %d net interface totally.\n", free_cnt);
+	AUTH_DEBUG("Free %d url totally.\n", free_cnt);
 #endif
 	return 0;
 }
