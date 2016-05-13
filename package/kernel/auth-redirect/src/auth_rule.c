@@ -895,7 +895,6 @@ static int match_host(unsigned char *pattern, uint8_t pattern_len, const unsigne
 	fetch_pattern_info(pattern, pattern_len, buff_patt, HOST_BUFF_SIZE, &pattern_info);
 	patt_cpy_len = pattern_info.pattern_len;
 	pattern_t = pattern_info.pattern_t;
-	
 	switch(pattern_t) {
 		case EXACT_MATCH:
 			{
@@ -944,8 +943,6 @@ static int auth_url_match(struct auth_url_info *target, struct url_info *src)
 {
 
 	if (match_host(target->host, target->host_len, src->host, src->host_len) == HOST_MISMATCH) {
-		printk("mismatch host:");
-		print_chars(src->host, src->host_len);
 		return URL_MISMATCH;
 	}
 	return URL_MATCH;
@@ -1103,6 +1100,8 @@ static int bypass_url(struct sk_buff *skb, uint8_t step)
 		if (auth_url_check(&url_info, step) == URL_PASS) {
 			return URL_BYPASS;
 		}
+		printk("mismatch host:");
+		print_chars(url_info.host, url_info.host_len);
 		return URL_UNBYPASS;
 	}
 	/*解析失败，直接放通*/
