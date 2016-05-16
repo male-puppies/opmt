@@ -1,5 +1,5 @@
 config system
-	option hostname WX100
+	option hostname EC700A
 	option timezone CST-8
 	option zonename Asia/Shanghai
 	option cronloglevel 8

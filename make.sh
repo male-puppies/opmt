@@ -1,6 +1,5 @@
 #!/bin/sh
 
-cp build_config/build.config .config
 
 for i in build_config/*.conf; do
 . $i
@@ -20,16 +19,16 @@ test $? -eq 0 || exit 1
 DIST=`cat .config | grep CONFIG_VERSION_DIST | awk -F\" '{print $2}'`
 VERSION=`cat .config | grep CONFIG_VERSION_NUMBER | awk -F\" '{print $2}'`
 
-ls bin/ramips/*.bin | grep -v puppies | xargs rm >/dev/null 2>&1
-mkdir -p bin/ramips/BY
-echo mv bin/ramips/*$VERSION*puppies*bin bin/ramips/BY/UploadBrush-bin.img
-mv bin/ramips/*$VERSION*puppies*bin bin/ramips/BY/UploadBrush-bin.img
+ls bin/ar71xx/*.bin | grep -v '16M-squashfs-sysupgrade' | xargs rm >/dev/null 2>&1
+mkdir -p bin/ar71xx/BY
+echo mv bin/ar71xx/*16M-squashfs-sysupgrade*bin bin/ar71xx/BY/UploadBrush-bin.img
+mv bin/ar71xx/*16M-squashfs-sysupgrade*bin bin/ar71xx/BY/UploadBrush-bin.img
 
-BINMD5=`md5sum bin/ramips/BY/UploadBrush-bin.img | awk '{print $1}'`
+BINMD5=`md5sum bin/ar71xx/BY/UploadBrush-bin.img | awk '{print $1}'`
 BINRANDOM=${board}${bin_random}
 RANDMD5=`echo -n $BINRANDOM | md5sum | awk '{print $1}'`
-echo -n ${BINMD5}${RANDMD5} | md5sum | awk '{print $1}' >  bin/ramips/BY/bin_random.txt
-cd  bin/ramips/BY/
+echo -n ${BINMD5}${RANDMD5} | md5sum | awk '{print $1}' >  bin/ar71xx/BY/bin_random.txt
+cd  bin/ar71xx/BY/
 tar -zcf $DIST-$VERSION".tar.gz" UploadBrush-bin.img bin_random.txt
 rm UploadBrush-bin.img bin_random.txt
 mv $DIST-$VERSION".tar.gz" $DIST-$VERSION
