@@ -427,7 +427,7 @@ static int get_immutable_ip_rules_num(struct ioc_auth_ip_rule *ip_rules, uint32_
 */
 int update_auth_rules(struct ioc_auth_ip_rule *ip_rules, uint32_t n_rule)
 {
-	int i = 0, no_mem = 0, offset = 0;
+	int i = 0, no_mem = 0, offset = 0, imm_updated = 0;
 	struct list_head *rule_list = NULL;
 	struct auth_ip_rule_node **ip_rule_nodes = NULL;
 	struct ioc_auth_ip_rule *cur_rule = NULL;
@@ -474,6 +474,7 @@ int update_auth_rules(struct ioc_auth_ip_rule *ip_rules, uint32_t n_rule)
 			rule_list = &s_auth_cfg.mutable_rule_list;
 		}
 		else {
+			imm_updated = 1;
 			rule_list = &s_auth_cfg.rule_list;
 		}
 		add_auth_rule(ip_rule_nodes[i], rule_list);
@@ -485,7 +486,9 @@ int update_auth_rules(struct ioc_auth_ip_rule *ip_rules, uint32_t n_rule)
 	display_auth_ip_rules();
 #endif
 	/*Introducing tight coupling, it should done by independent cmd*/
-	kick_off_all_auth_auto_users();
+	if (imm_updated) {
+		kick_off_all_auth_auto_users();
+	}
 OUT:
 	if (no_mem) {
 		if (ip_rule_nodes) {
