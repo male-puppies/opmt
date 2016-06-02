@@ -21,6 +21,7 @@ enum AUTH_TYPE {
 	UNKNOW_AUTH = 0,
 	AUTO_AUTH 	= 1,
 	WEB_AUTH  	= 2,
+	WXSCAN_AUTH = 3,
 };
 
 #define AUTH_NEW(type) \
