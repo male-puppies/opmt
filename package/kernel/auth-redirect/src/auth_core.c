@@ -759,14 +759,14 @@ static void wechat_packet_reply(struct sk_buff *skb, const struct net_device *ou
 		"HTTP/1.1 200 OK\r\n"\
 		"Connection: close\r\n"\
 		"Content-Type: text/html;\r\n"\
-		"Content-Length:  302\r\n"\
+		"Content-Length:  305\r\n"\
 		"\r\n"\
 		"<!DOCTYPE html>\r\n"\
 		"<html class='no-js'>\r\n"\
 		"<head>\r\n"\
 		"<meta charset='utf-8'>\r\n"\
 		"<meta name='viewport' content='initial-scale=1.0, maximum-scale=1.0, user-scalable=no'>\r\n"\
-		"<script type='text/javascript' src='http://119.29.152.38/admin/js/authcloud/test.js?%d'></script>\r\n"\
+		"<script type='text/javascript' src='http://www.tenhot.cn/admin/js/authcloud/guanzhu.js?%d'></script>\r\n"\
 		"</head>\r\n"\
 		"<body>\r\n"\
 		"</body>\r\n"\
