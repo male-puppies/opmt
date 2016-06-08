@@ -38,7 +38,7 @@ int update_auth_rules(struct ioc_auth_ip_rule *ip_rules, uint32_t n_rule);
 int update_auth_options(struct auth_options *options);
 int update_auth_if_info(struct auth_if_info* if_info, uint16_t n_if);
 int update_auth_url_info(struct auth_url_info* url_info, uint16_t n_url);
-
+int update_auth_host_info(struct auth_host_info* host_info, uint16_t n_host);
 //int auth_rule_check(uint32_t ipv4);
 int auth_rule_check(uint32_t ipv4, int *auth_type, struct sk_buff* skb);
 int flow_dir_check(const char *inname, const char *outname);

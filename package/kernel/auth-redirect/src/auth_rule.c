@@ -25,6 +25,8 @@
 #define PORT_UNPASS 0
 #define URL_BYPASS 1
 #define URL_UNBYPASS 0
+#define HOST_BYPASS 1
+#define HOST_UNBYPASS 0
 #define URL_MATCH 1
 #define URL_MISMATCH 0
 #define HOST_MATCH 0
@@ -33,6 +35,12 @@
 #define HOST_BUFF_SIZE 64
 static char buff_tar[HOST_BUFF_SIZE] = {0};
 static char buff_patt[HOST_BUFF_SIZE] = {0};
+
+#define 	OTHER_TYPE	0x00
+#define 	RAW_TCP		0x01
+#define 	HTTP_GET 	0x02
+#define 	HTTP_POST 	0x04
+
 
 enum pattern_type {
 	EXACT_MATCH ,
@@ -57,7 +65,7 @@ static uint32_t s_watchdog_intval_jf = 0;		/*unit is millisecond*/
 struct auth_ip_rule_node {
 	struct list_head rule_node;
 	struct auth_ip_rule ip_rule;
-	uint64_t jf;
+	unsigned long jf;
 };
 
 /*net interface node*/
@@ -71,12 +79,20 @@ struct url_info_node {
 	struct auth_url_info url_info;
 };
 
+
+struct host_info_node {
+	struct list_head host_node;
+	struct auth_host_info host_info;
+};
+
+
 struct auth_rule_config {
 	struct list_head rule_list;
 	struct list_head mutable_rule_list;
 	struct auth_options auth_option;
 	struct list_head if_list;
 	struct list_head url_list;
+	struct list_head host_list;
 	enum AUTH_RULE_CONF_STAT_E status;
 	spinlock_t lock;
 };
@@ -603,7 +619,7 @@ void display_auth_url_info(struct auth_url_info *url_info)
 	AUTH_DEBUG("host: %s.\n", url_info->host);
 	AUTH_DEBUG("uri: %s.\n", url_info->uri);
 	AUTH_DEBUG("step: %d.\n", url_info->step);
-	AUTH_DEBUG("--------IF_INFO END---------\n");
+	AUTH_DEBUG("--------URL_INFO END---------\n");
 }
 
 
@@ -734,6 +750,139 @@ OUT:
 	return 0;
 }
 
+
+
+void display_auth_host_info(struct auth_host_info *host_info)
+{
+	AUTH_DEBUG("--------HOST_INFO BEGIN---------\n");
+	AUTH_DEBUG("host: %s.\n", host_info->host);
+	AUTH_DEBUG("--------HOST_INFO END---------\n");
+}
+
+
+void display_auth_host_infos(void)
+{
+	struct list_head *cur = NULL;
+	struct host_info_node *host_node = NULL;
+	list_for_each(cur, &s_auth_cfg.host_list) {
+		host_node = list_entry(cur, struct host_info_node, host_node);
+		display_auth_host_info(&host_node->host_info);
+	}
+}
+
+
+int clean_auth_host_infos(void)
+{
+	struct host_info_node *host_node = NULL;
+	struct list_head *cur = NULL, *next = NULL;
+#if DEBUG_ENABLE
+	int free_cnt = 0;
+#endif
+
+	/*if don't check empty, will cause error.*/
+	if (list_empty(&s_auth_cfg.host_list)) {
+	#if DEBUG_ENABLE
+		AUTH_DEBUG("no host clean.\n");
+	#endif
+		return 0;
+	}
+	/*notice: we cann't list entry directly.*/
+	list_for_each_safe(cur, next, &s_auth_cfg.host_list) {
+		host_node = list_entry(cur, struct host_info_node, host_node);
+		list_del(cur);
+	#if DEBUG_ENABLE
+		display_auth_host_info(&host_node->host_info);
+		free_cnt ++;
+	#endif
+		kfree(host_node);
+		host_node = NULL;
+	}
+	INIT_LIST_HEAD(&s_auth_cfg.host_list);
+#if DEBUG_ENABLE
+	AUTH_DEBUG("Free %d url totally.\n", free_cnt);
+#endif
+	return 0;
+}
+
+
+static void add_auth_host_info(struct host_info_node *host_info_node)
+{
+	list_add_tail(&host_info_node->host_node, &s_auth_cfg.host_list);
+}
+
+
+static int copy_auth_host_info_to_node(struct host_info_node *host_info_node, struct auth_host_info *host_info)
+{
+	INIT_LIST_HEAD(&host_info_node->host_node);
+	host_info_node->host_info.host_len = host_info->host_len;
+	memcpy(host_info_node->host_info.host, host_info->host, host_info->host_len + 1);
+	return 0;
+}
+
+
+
+int update_auth_host_info(struct auth_host_info* host_info, uint16_t n_host)
+{
+	int i = 0, no_mem = 0;
+	struct host_info_node **host_info_nodes = NULL;
+
+	auth_cfg_disable();
+	spin_lock_bh(&s_auth_cfg.lock);
+	if (n_host == 0) {
+		clean_auth_host_infos();
+		goto OUT;
+	}
+	/*allocating n url_info node*/
+	host_info_nodes = AUTH_NEW_N(struct host_info_node *, n_host);
+	if (host_info_nodes == NULL) {
+		AUTH_ERROR("No memory.");
+		no_mem = 1;
+		goto OUT;
+	}
+	memset(host_info_nodes, 0, n_host * sizeof(struct host_info_node*));
+	for (i = 0; i < n_host; i++) {
+		host_info_nodes[i] = AUTH_NEW(struct host_info_node);
+		if (host_info_nodes[i] == NULL) {
+			AUTH_ERROR("No memory.");
+			no_mem = 1;
+			goto OUT;
+		}
+		INIT_LIST_HEAD(&host_info_nodes[i]->host_node);
+	}
+
+	/*free old rule_list*/
+	clean_auth_host_infos();
+
+	/*insert new rule*/
+	for (i = 0; i < n_host; i++) {
+		copy_auth_host_info_to_node(host_info_nodes[i], &host_info[i]);
+		add_auth_host_info(host_info_nodes[i]);
+	}
+
+#if DEBUG_ENABLE
+	display_auth_host_infos();
+#endif
+
+OUT:
+	if (no_mem) {
+		if (host_info_nodes) {
+			for (i = 0; i < n_host; i++) {
+				if (host_info_nodes[i]) {
+					kfree(host_info_nodes[i]);
+					host_info_nodes[i] = NULL;
+				}
+			}
+			kfree(host_info_nodes);
+			host_info_nodes = NULL;
+		}
+	}
+	spin_unlock_bh(&s_auth_cfg.lock);
+	auth_cfg_enable();
+	if (no_mem) {
+		return -1;
+	}
+	return 0;
+}
 
 int create_mutable_rule(uint32_t ipv4, uint8_t rule_type, uint16_t timeout)
 {
@@ -1050,17 +1199,17 @@ OUT:
 }
 
 
-static int bypass_tcp_sevice(uint16_t port)
-{
-	uint16_t ports[] = {80, 443};
-	uint16_t i = 0;
-	for (i = 0; i < sizeof(ports)/sizeof(uint16_t); i++) {
-		if (port == ports[i]) {
-			return PORT_BYPASS;
-		}
-	}
-	return PORT_UNPASS;
-}
+// static int bypass_tcp_sevice(uint16_t port)
+// {
+// 	uint16_t ports[] = {80, 443};
+// 	uint16_t i = 0;
+// 	for (i = 0; i < sizeof(ports)/sizeof(uint16_t); i++) {
+// 		if (port == ports[i]) {
+// 			return PORT_BYPASS;
+// 		}
+// 	}
+// 	return PORT_UNPASS;
+// }
 
 
 /*
@@ -1068,64 +1217,133 @@ static int bypass_tcp_sevice(uint16_t port)
 *非get/post tcp数据一律放通
 *满足要求的get post tcp数据放通
 */
-static int bypass_url(struct sk_buff *skb, uint8_t step) 
+static int bypass_url(int packet_type, struct url_info *url_info, uint8_t step) 
+{
+	if (step == AUTH_STEP2 && packet_type == RAW_TCP) {
+		return URL_BYPASS;
+	}
+	if ((packet_type & HTTP_POST) || (packet_type & HTTP_GET)) {
+		/*uri_len长度可以为0*/
+		if (url_info->host_len > 0 && url_info->uri_len >= 0) {
+			if (auth_url_check(url_info, step) == URL_PASS) {
+				return URL_BYPASS;
+			}
+			printk("mismatch host:");
+			print_chars(url_info->host, url_info->host_len);
+			return URL_UNBYPASS;
+		}
+		/*解析失败，直接放通*/
+		if (url_info->host_len <= 0 || url_info->uri_len < 0) {
+			return URL_BYPASS;
+		}
+	}
+	return URL_UNBYPASS;
+}
+
+
+int auth_host_check(struct url_info *url_info_t)
+{
+	struct list_head *cur = NULL;
+	struct host_info_node *cur_node = NULL;
+	struct auth_host_info *host_info = NULL;
+	int check_res = HOST_UNBYPASS;
+
+	if (list_empty(&s_auth_cfg.host_list)) {
+		check_res =  HOST_UNBYPASS;
+		goto OUT;
+	}
+	list_for_each(cur, &s_auth_cfg.host_list) {
+		cur_node = list_entry(cur, struct host_info_node, host_node);
+		host_info = &cur_node->host_info;
+		if (match_host(host_info->host, host_info->host_len, url_info_t->host, url_info_t->host_len) == HOST_MATCH) {
+			check_res = HOST_BYPASS;
+			break;
+		}
+	}
+
+OUT:
+	return check_res;
+}
+
+
+static int bypass_host(int packet_type, struct url_info *url_info) 
+{
+	if (packet_type == RAW_TCP) {
+		return HOST_UNBYPASS;
+	}
+
+	if ((packet_type & HTTP_POST) || (packet_type & HTTP_GET)) {
+		/*uri_len长度可以为0*/
+		if (url_info->host_len > 0 && url_info->uri_len >= 0) {
+			if (auth_host_check(url_info) == HOST_BYPASS) {
+				return HOST_BYPASS;
+			}
+			return HOST_UNBYPASS;
+		}
+		/*解析失败，直接放通*/
+		if (url_info->host_len <= 0 || url_info->uri_len < 0) {
+			return HOST_BYPASS;
+		}
+	}
+	return HOST_UNBYPASS;
+
+}
+
+
+static void fetch_packet_info(struct sk_buff *skb, int *packet_type, struct url_info *url_info) 
 {
 	struct tcphdr *tcph = NULL;
 	int tcphdr_len = 0, tcpdata_len = 0;
 	char *tcp_data = NULL;
-	struct url_info url_info = {.host= NULL, .uri = NULL, .host_len = 0 , .uri_len = 0};
 	struct iphdr *iph = ip_hdr(skb);
 
 	if (iph->protocol != IPPROTO_TCP) {
-		return URL_UNBYPASS;
+		*packet_type = OTHER_TYPE;
+		return;
 	}
+
+	*packet_type = RAW_TCP;
+
 	tcph = (struct tcphdr *)(skb->data + (iph->ihl << 2));
 	tcphdr_len = tcph->doff * 4;
 	tcp_data = (char*)tcph + tcphdr_len;
 	tcpdata_len = ntohs(iph->tot_len) - iph->ihl * 4 - tcphdr_len; 
+
 	if (is_post_packet(skb)) {
-		http_post_data_parse(tcp_data, tcpdata_len, &url_info);
+		*packet_type |= HTTP_POST;
+		http_post_data_parse(tcp_data, tcpdata_len, url_info);
+		return;
 	}
-	else if (is_get_packet(skb)) {
-		http_get_data_parse(tcp_data, tcpdata_len, &url_info);
+
+	if (is_get_packet(skb)) {
+		*packet_type |= HTTP_GET;
+		http_get_data_parse(tcp_data, tcpdata_len, url_info);
+		return;
 	}
-	else {
-	 	if (step == AUTH_STEP2) {	/*step2的tcp数据放通*/
-	 		// if(bypass_tcp_sevice(ntohs(tcph->dest)) == PORT_BYPASS) {
-	 		// 	return URL_BYPASS;
-			 // }	
-			 return URL_BYPASS;
-		 }
-		return URL_UNBYPASS;
-	}
-	/*uri_len长度可以为0*/
-	if (url_info.host_len > 0 && url_info.uri_len >= 0) {
-		if (auth_url_check(&url_info, step) == URL_PASS) {
-			return URL_BYPASS;
-		}
-		printk("mismatch host:");
-		print_chars(url_info.host, url_info.host_len);
-		return URL_UNBYPASS;
-	}
-	/*解析失败，直接放通*/
-	if (url_info.host_len <= 0 || url_info.uri_len < 0) {
-		return URL_BYPASS;
-	}
-	return URL_UNBYPASS;
+	
+	return;
 }
+
 
 
 /*First step,traversing auth rules until across a match rule or run over all rule.
  *Second step, i.e, last step, return the process code.*/
 int auth_rule_check(uint32_t ipv4, int *auth_type, struct sk_buff* skb)
 {
-	int i = 0, matched = 0, auth_res = AUTH_RULE_PASS;	/*default process is pass*/
+	int i = 0, matched = 0, packet_type, auth_res = AUTH_RULE_PASS;	/*default process is pass*/
 	struct list_head *cur = NULL;
 	struct auth_ip_rule_node *cur_node = NULL;
 	struct auth_ip_rule *ip_rule = NULL;
+	struct url_info url_info = {.uri = NULL, .host = NULL, .uri_len = 0, .host_len = 0};
 
 	*auth_type = UNKNOW_AUTH;
+	fetch_packet_info(skb, &packet_type, &url_info);
+
 	spin_lock_bh(&s_auth_cfg.lock);
+	if (bypass_host(packet_type, &url_info) == HOST_BYPASS) {
+		goto OUT;
+	}
+
 	if (!list_empty(&s_auth_cfg.mutable_rule_list)) {
 		list_for_each(cur, &s_auth_cfg.mutable_rule_list) {
 			cur_node = list_entry(cur, struct auth_ip_rule_node, rule_node);
@@ -1136,7 +1354,7 @@ int auth_rule_check(uint32_t ipv4, int *auth_type, struct sk_buff* skb)
 					continue;
 				}
 				/* 临时放通以后，才bypass指定uri*/
-				if (bypass_url(skb, ip_rule->step) == URL_BYPASS) {
+				if (bypass_url(packet_type, &url_info, ip_rule->step) == URL_BYPASS) {
 					AUTH_DEBUG("STA(%pI4h) match rule, bypass.\n",  &ipv4);
 					goto OUT;
 				}
@@ -1288,6 +1506,7 @@ int auth_rule_init()
 	INIT_LIST_HEAD(&s_auth_cfg.mutable_rule_list);
 	INIT_LIST_HEAD(&s_auth_cfg.if_list);
 	INIT_LIST_HEAD(&s_auth_cfg.url_list);
+	INIT_LIST_HEAD(&s_auth_cfg.host_list);
 	spin_lock_init(&s_auth_cfg.lock);
 	OS_INIT_TIMER(&s_watchdog_tm, mutable_rule_watchdog_fn, NULL);
 	s_watchdog_intval_jf = msecs_to_jiffies(WATCHDOG_EXPIRED_INTVAL);	/*unit is millseconds*/
@@ -1305,5 +1524,6 @@ void auth_rule_fini(void)
 	clean_all_auth_rules();
 	clean_auth_if_infos();
 	clean_auth_url_infos();
+	clean_auth_host_infos();
 	spin_unlock_bh(&s_auth_cfg.lock);
 }

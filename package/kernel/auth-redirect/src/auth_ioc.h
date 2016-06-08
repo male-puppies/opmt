@@ -10,6 +10,7 @@
 #define SIOCSIFINFO			0x104	/*set network interface*/
 #define SIOCSAUTHURLS       0X105   /*set bypass url*/
 #define SIOCSDEBUGOPTIONS	0x106	/*set debug options*/
+#define SIOCSAUTHHOSTS 		0x107 	/*set bypass host*/
 
 #define	REDIRECT_URL_MAX		256
 #define REDIRECT_TITLE_MAX		128
@@ -85,6 +86,7 @@ enum ARG_TYPE_E {
 	USER_SSTAT	= 3,
 	NET_IF_INFO	= 4,
 	BYPASS_URL_INFO = 5,
+	BYPASS_HOST_INFO = 6,
 	/*add new type here*/
 	INVALID_ARG_TYPE,
 };
@@ -105,7 +107,7 @@ enum USER_STATUS {
 struct user_info {
 	uint32_t ipv4;
 	uint32_t status;
-	uint64_t jf;
+	unsigned long jf;
 	unsigned char mac[ETH_ALEN];
 	uint16_t auth_type;
 	//unsigned char reserved[2];
@@ -117,7 +119,7 @@ struct user_stat_assist {
 	uint16_t nc_element;/*num count of mem space which unit is sizeof(user_info)*/
 	uint16_t nc_user;	/*real num of user*/
 	uint16_t nc_unused; /*more user need to get*/
-	uint64_t tm_stamp;
+	unsigned long tm_stamp;
 	unsigned long addr; /*user_space addr*/
 };
 /*"assit + user_info" kernel copy to user*/
@@ -145,6 +147,13 @@ struct auth_url_info {
 	unsigned char 	uri[BYPASS_URI_LEN];	/*null terminated*/
 	unsigned char 	host[BYPASS_HOST_LEN]; /*null terminated*/
 	uint8_t			step;
+};
+
+
+/*host info*/
+struct auth_host_info {
+	uint8_t 		host_len;
+	unsigned char 	host[BYPASS_HOST_LEN]; /*null terminated*/
 };
 
 /*ioctl cmd args*/

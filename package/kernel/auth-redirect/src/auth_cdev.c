@@ -129,6 +129,9 @@ static long auth_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned lo
 			ret = do_set_debug_options(auth_arg);
 			break;
 			
+		case SIOCSAUTHHOSTS:
+			ret = do_set_auth_hostinfo(auth_arg);
+			break;
 		default:
 			ret = -1;
 			break;

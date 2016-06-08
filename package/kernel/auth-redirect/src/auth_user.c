@@ -16,15 +16,15 @@ struct auth_user_hash {
 struct auth_user_set {
 	struct user_info *infos;
 	uint32_t nc_user;
-	uint64_t tm_stamp;	/*used as request identifier*/
+	unsigned long tm_stamp;	/*used as request identifier*/
 	uint32_t nc_used_user;
 	uint32_t valid;
 };
 
 static struct timer_list s_watchdog_tm;	/*tm for forcing free timeout user*/
-static uint32_t s_watchdog_intval_jf = 0;	/*unit is millisecond*/
-static uint32_t s_user_off_intval_jf = 0;
-static uint32_t s_user_timeout_intval_jf = 0;
+static unsigned long s_watchdog_intval_jf = 0;	/*unit is millisecond*/
+static unsigned long s_user_off_intval_jf = 0;
+static unsigned long s_user_timeout_intval_jf = 0;
 static struct auth_user_hash s_user_hash;
 static struct auth_user_set s_user_set;
 
@@ -81,7 +81,7 @@ void display_user(struct user_node *user)
 				user->info.mac[3],  user->info.mac[4],  user->info.mac[5]);
 	AUTH_DEBUG("IPV4:%pI4 .\n", &user->info.ipv4);
 	AUTH_DEBUG("Status:%u.\n", user->info.status);
-	AUTH_DEBUG("Jiffes:%llu.\n", user->info.jf);
+	AUTH_DEBUG("Jiffes:%lu.\n", user->info.jf);
 	AUTH_DEBUG("***************DISPLAY USER END****************\n");
 }
 
@@ -406,7 +406,7 @@ static void auth_user_watchdog_fn(unsigned long arg)
 #if DEBUG_ENABLE
 	uint32_t free_total = 0;
 #endif
-	uint32_t now_jf = jiffies;
+	unsigned long now_jf = jiffies;
 	uint16_t slot_idx = 0;
 	struct hlist_head *hslot = NULL;
 	struct user_node *user = NULL;
@@ -419,7 +419,7 @@ static void auth_user_watchdog_fn(unsigned long arg)
 			if ((now_jf - user->info.jf) >= s_user_timeout_intval_jf) {
 				#if DEBUG_ENABLE
 					free_total++;
-					AUTH_DEBUG("user del:%pI4h for timeout[last_jf:%lluu, timeout_jf:%u, now_jf:%u].\n", 
+					AUTH_DEBUG("user del:%pI4h for timeout[last_jf:%lu, timeout_jf:%lu, now_jf:%lu].\n", 
 								&user->info.ipv4, user->info.jf, s_user_timeout_intval_jf, now_jf);
 				#endif
 				auth_user_del(slot_idx, user);
@@ -429,7 +429,7 @@ static void auth_user_watchdog_fn(unsigned long arg)
 				#if DEBUG_ENABLE
 				if (user->info.status == USER_ONLINE)
 				{
-					AUTH_DEBUG("user offline:%pI4h for timeout[last_jf:%llu, off_jf:%u, now_jf:%u].\n", 
+					AUTH_DEBUG("user offline:%pI4h for timeout[last_jf:%lu, off_jf:%lu, now_jf:%lu].\n", 
 								&user->info.ipv4, user->info.jf, s_user_off_intval_jf, now_jf);
 				}
 				#endif
@@ -469,7 +469,7 @@ int watchdog_tm_update(uint32_t msecs_intval)
 	s_user_off_intval_jf = (s_watchdog_intval_jf << 1);
 	s_user_timeout_intval_jf = (s_watchdog_intval_jf << 2);
 
-	AUTH_DEBUG("WATCHDOG_INTVAL_JF:%u, USER_OFFLINE_JF:%u, USER_TIMEOUT_JF:%u\n",
+	AUTH_DEBUG("WATCHDOG_INTVAL_JF:%lu, USER_OFFLINE_JF:%lu, USER_TIMEOUT_JF:%lu\n",
 				s_watchdog_intval_jf, s_user_off_intval_jf, s_user_timeout_intval_jf);
 	OS_CANCEL_TIMER(&s_watchdog_tm);
 	OS_SET_TIMER(&s_watchdog_tm, s_watchdog_intval_jf);
@@ -493,7 +493,7 @@ int auth_user_init(void)
 	s_user_off_intval_jf = (s_watchdog_intval_jf << 1);
 	s_user_timeout_intval_jf = (s_watchdog_intval_jf << 2);
 	OS_SET_TIMER(&s_watchdog_tm, s_watchdog_intval_jf);
-	AUTH_DEBUG("WATCHDOG_INTVAL_JF:%u, USER_OFFLINE_JF:%u, USER_TIMEOUT_JF:%u\n",
+	AUTH_DEBUG("WATCHDOG_INTVAL_JF:%lu, USER_OFFLINE_JF:%lu, USER_TIMEOUT_JF:%lu\n",
 				s_watchdog_intval_jf, s_user_off_intval_jf, s_user_timeout_intval_jf);
 	AUTH_INFO("auth_user_init success.\n");
 	return 0;

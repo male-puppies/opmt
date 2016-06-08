@@ -87,7 +87,7 @@ static int do_auth_redirect(struct sk_buff *skb, const struct net_device *dev)
 {
 	#define REDIRECT_URL   "HTTP/1.1 302 Moved Temporarily\r\n"\
 					  "Location: http://10.10.10.10/webui?"\
-					   "mac=%02x:%02x:%02x:%02x:%02x:%02x&ip=%u.%u.%u.%u&seed=%llu\r\n"\
+					   "mac=%02x:%02x:%02x:%02x:%02x:%02x&ip=%u.%u.%u.%u&seed=%lu\r\n"\
 					   "Content-Type: text/html;\r\n"\
 					   "Cache-Control: no-cache\r\n"\
 					   "Content-Length: 0\r\n\r\n"
@@ -169,7 +169,7 @@ static int wxscan_redirect(struct sk_buff *skb, const struct net_device *dev)
 {
 	#define REDIRECT_URL  "HTTP/1.1 302 Moved Temporarily\r\n"\
 					  "Location: http://www.foo.com/portal/portal.html?authUrl=http://10.10.10.10/weixin2_login&extend="\
-					   "%u.%u.%u.%u,%02x:%02x:%02x:%02x:%02x:%02x,%llu\r\n"\
+					   "%u.%u.%u.%u,%02x:%02x:%02x:%02x:%02x:%02x,%lu\r\n"\
 					   "Content-Type: text/html;\r\n"\
 					   "Cache-Control: no-cache\r\n"\
 					   "Content-Length: 0\r\n\r\n"
