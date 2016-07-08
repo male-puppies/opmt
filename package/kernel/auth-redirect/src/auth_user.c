@@ -243,6 +243,27 @@ struct  user_node *auth_user_get(const unsigned char *mac)
 }
 
 
+struct  user_node *auth_user_get_no_lock(const unsigned char *mac)
+{
+	uint32_t hkey = 0, existence = 0;
+	struct hlist_head *hslot = NULL;
+	struct user_node *user = NULL;
+
+	hkey = auth_user_mac_hash(mac);
+	hslot = &s_user_hash.slots[hkey & AUTH_USER_HASH_MASK];
+	hlist_for_each_entry(user, hslot, user_node) {
+		if (memcmp(user->info.mac, mac, ETH_ALEN) == 0) {
+			existence = 1;
+			break;
+		}
+	}
+	if (existence) {
+		return user;
+	}
+	return NULL;
+}
+
+
 struct user_node *auth_user_add(struct user_info *user_info)
 {
 	uint32_t hkey = 0;
@@ -261,17 +282,27 @@ struct user_node *auth_user_add(struct user_info *user_info)
 		return user;
 	}
 	hkey = auth_user_mac_hash(user->info.mac);
+	
+	spin_lock_bh(&s_user_hash.lock);
+	struct user_node *old_user = auth_user_get_no_lock(user_info->mac);
+	if (old_user)
+	{
+	    kfree(user);	    
+	    spin_unlock_bh(&s_user_hash.lock);
+	    return old_user;
+	}
+	hslot = &s_user_hash.slots[hkey & AUTH_USER_HASH_MASK];
+	hlist_add_head(&user->user_node, hslot);
+	s_user_hash.n_slot_user[hkey & AUTH_USER_HASH_MASK] ++;
+	spin_unlock_bh(&s_user_hash.lock);
+
+
 	#if DEBUG_ENABLE
 	AUTH_DEBUG("[HKEY:%u;SLOT:%u;MAC:%02x:%02x:%02x:%02x:%02x:%02x].\n", 
 				hkey, (hkey & AUTH_USER_HASH_MASK),
 				user->info.mac[0],  user->info.mac[1],  user->info.mac[2],
 				user->info.mac[3],  user->info.mac[4],  user->info.mac[5]);
 	#endif
-	spin_lock_bh(&s_user_hash.lock);
-	hslot = &s_user_hash.slots[hkey & AUTH_USER_HASH_MASK];
-	hlist_add_head(&user->user_node, hslot);
-	s_user_hash.n_slot_user[hkey & AUTH_USER_HASH_MASK] ++;
-	spin_unlock_bh(&s_user_hash.lock);
 	return user;
 }
 
