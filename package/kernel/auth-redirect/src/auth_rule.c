@@ -20,6 +20,8 @@
 #include <linux/netfilter_bridge.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
+#include <linux/jhash.h>
+
 
 #define PORT_BYPASS 1
 #define PORT_UNPASS 0
@@ -41,6 +43,15 @@ static char buff_patt[HOST_BUFF_SIZE] = {0};
 #define 	HTTP_GET 	0x02
 #define 	HTTP_POST 	0x04
 
+#define AUTH_MAC_HASH_SIZE       (1 << 10)
+#define AUTH_MAC_HASH_MASK       (AUTH_MAC_HASH_SIZE - 1)
+
+struct auth_mac_hash {
+	struct hlist_head slots[AUTH_MAC_HASH_SIZE];
+	uint32_t n_slot_mac[AUTH_MAC_HASH_SIZE];
+	spinlock_t lock;
+};
+
 
 enum pattern_type {
 	EXACT_MATCH ,
@@ -51,6 +62,7 @@ enum pattern_type {
 	
 	INVALID_MATCH
 };
+
 
 struct pattern_info {
 	uint8_t pattern_len;
@@ -85,6 +97,10 @@ struct host_info_node {
 	struct auth_host_info host_info;
 };
 
+struct mac_info_node {
+	struct list_head mac_node;
+	struct mac_info mac_info;
+};
 
 struct auth_rule_config {
 	struct list_head rule_list;
@@ -93,11 +109,13 @@ struct auth_rule_config {
 	struct list_head if_list;
 	struct list_head url_list;
 	struct list_head host_list;
+	//struct list_head mac_list;
 	enum AUTH_RULE_CONF_STAT_E status;
 	spinlock_t lock;
 };
 
 static struct auth_rule_config s_auth_cfg;
+static struct auth_mac_hash s_mac_hash;
 
 
 #define OS_INIT_TIMER(_timer, _fn, _arg)	\
@@ -758,7 +776,15 @@ void display_auth_host_info(struct auth_host_info *host_info)
 	AUTH_DEBUG("host: %s.\n", host_info->host);
 	AUTH_DEBUG("--------HOST_INFO END---------\n");
 }
+void display_auth_mac_info(struct mac_info *mac_info)
+{
+	AUTH_DEBUG("--------MAC_INFO BEGIN---------\n");
+	AUTH_DEBUG("mac: [%02x:%02x:%02x:%02x:%02x:%02x] .\n", 
+					mac_info->mac[0], mac_info->mac[1], mac_info->mac[2],
+					mac_info->mac[3], mac_info->mac[4], mac_info->mac[5]);
+	AUTH_DEBUG("--------MAC_INFO END---------\n");
 
+}
 
 void display_auth_host_infos(void)
 {
@@ -769,6 +795,57 @@ void display_auth_host_infos(void)
 		display_auth_host_info(&host_node->host_info);
 	}
 }
+
+void display_auth_mac_infos(void)
+{
+	uint32_t  mac_total = 0, slot_idx = 0;
+	struct hlist_head *hslot = NULL;
+	struct mac_node *mac= NULL;
+	struct hlist_node *node = NULL;
+	for (slot_idx = 0; slot_idx < AUTH_MAC_HASH_SIZE; slot_idx++) {
+		hslot = &s_mac_hash.slots[slot_idx];
+		mac_total += s_mac_hash.n_slot_mac[slot_idx];
+		hlist_for_each_entry_safe(mac, node, hslot, mac_node) {
+		#if DEBUG_ENABLE
+			display_auth_mac_info(&mac->info);
+		#endif
+		}
+	}
+	AUTH_DEBUG("Display all mac:[total=%u].\n", mac_total);
+}
+
+static int auth_mac_del(uint16_t slot_idx, struct mac_node *mac)
+{
+	struct user_node *user;
+	hlist_del(&mac->mac_node);
+	user = auth_user_get(mac->info.mac);
+	update_auth_user_status(user, USER_OFFLINE);
+	kfree(mac);
+	s_mac_hash.n_slot_mac[slot_idx & AUTH_MAC_HASH_MASK] --;
+	return 0;
+}
+
+static void auth_mac_clear(void)
+{
+	uint32_t  mac_total = 0, slot_idx = 0, free_total = 0;
+	struct hlist_head *hslot = NULL;
+	struct mac_node *mac= NULL;
+	struct hlist_node *node = NULL;
+	for (slot_idx = 0; slot_idx < AUTH_MAC_HASH_SIZE; slot_idx++) {
+		hslot = &s_mac_hash.slots[slot_idx];
+		mac_total += s_mac_hash.n_slot_mac[slot_idx];
+		hlist_for_each_entry_safe(mac, node, hslot, mac_node) {
+		#if DEBUG_ENABLE
+			display_auth_mac_info(&mac->info);
+		#endif
+				auth_mac_del(slot_idx, mac);
+				mac = NULL;
+				free_total++;
+		}
+	}
+	AUTH_DEBUG("Clear all mac:[total=%u, free=%u].\n", mac_total, free_total);
+}
+
 
 
 int clean_auth_host_infos(void)
@@ -804,10 +881,22 @@ int clean_auth_host_infos(void)
 	return 0;
 }
 
+//static void add_auth_mac_info(struct mac_info_node *mac_info_node)
+//{
+//	list_add_tail(&mac_info_node->mac_node, &s_auth_cfg.mac_list);
+//}
 
 static void add_auth_host_info(struct host_info_node *host_info_node)
 {
 	list_add_tail(&host_info_node->host_node, &s_auth_cfg.host_list);
+}
+
+static int copy_auth_mac_info_to_node(struct mac_info_node *mac_info_node, struct mac_info *mac_info)
+{
+	INIT_LIST_HEAD(&mac_info_node->mac_node);
+	mac_info_node->mac_info.status = mac_info->status;
+	memcpy(mac_info_node->mac_info.mac, mac_info->mac, ETH_ALEN);
+	return 0;
 }
 
 
@@ -819,6 +908,148 @@ static int copy_auth_host_info_to_node(struct host_info_node *host_info_node, st
 	return 0;
 }
 
+/*no lock*/
+static uint32_t auth_user_mac_hash(const unsigned char *mac)
+{
+	uint32_t n = 0, h = 0;
+	unsigned char hash_data[ETH_ALEN + 2] = {0};
+
+	n = ETH_ALEN + 2;
+	memcpy(hash_data, mac, ETH_ALEN);
+	h = jhash2((const u32 *)hash_data, n / sizeof(u32), *(uint32_t *)(mac + 2));
+	return  ((u64)h * n) >> 32;
+}
+
+struct  mac_node *auth_mac_get(const unsigned char *mac_infos)
+{
+	uint32_t hkey = 0, existence = 0;
+	struct hlist_head *hslot = NULL;
+	struct mac_node *mac = NULL;
+
+	hkey = auth_user_mac_hash(mac_infos);
+	hslot = &s_mac_hash.slots[hkey & AUTH_MAC_HASH_MASK];
+	spin_lock_bh(&s_mac_hash.lock);
+	hlist_for_each_entry(mac, hslot, mac_node) {
+		if (memcmp(mac->info.mac, mac_infos, ETH_ALEN) == 0) {
+			existence = 1;
+			break;
+		}
+	}
+	spin_unlock_bh(&s_mac_hash.lock);
+	if (existence) {
+		return mac;
+	}
+	return NULL;
+}
+
+static struct mac_node *mac_create(const struct mac_info *mac_info)
+{
+	struct mac_node *mac = NULL;
+	mac = AUTH_NEW(struct mac_node);
+	if (mac == NULL) {
+		AUTH_ERROR("create mac failed for no memory.\n");
+		return mac;
+	}
+	memset(mac, 0, sizeof(struct mac_node));
+	INIT_HLIST_NODE(&mac->mac_node);
+	mac->info.status = mac_info->status;
+	memcpy(mac->info.mac, mac_info->mac, ETH_ALEN);
+	AUTH_DEBUG("create a new mac node.");
+	return mac;
+}
+
+struct user_node *auth_mac_add(struct mac_info *mac_info)
+{
+	uint32_t hkey = 0;
+	struct mac_node *mac = NULL;
+	struct hlist_head *hslot = NULL;
+
+	mac = auth_mac_get(mac_info->mac);
+	if (mac) {
+		AUTH_DEBUG("user[%02x:%02x:%02x:%02x:%02x:%02x] already existence.\n", 
+					mac_info->mac[0], mac_info->mac[1], mac_info->mac[2],
+					mac_info->mac[3], mac_info->mac[4], mac_info->mac[5]);
+		return mac;
+	}
+	mac = mac_create(mac_info);
+	if (mac == NULL) {
+		return mac;
+	}
+	hkey = auth_user_mac_hash(mac->info.mac);
+	#if DEBUG_ENABLE
+	AUTH_DEBUG("[HKEY:%u;SLOT:%u;MAC:%02x:%02x:%02x:%02x:%02x:%02x].\n", 
+				hkey, (hkey & AUTH_MAC_HASH_MASK),
+				mac->info.mac[0],  mac->info.mac[1],  mac->info.mac[2],
+				mac->info.mac[3],  mac->info.mac[4],  mac->info.mac[5]);
+	#endif
+	spin_lock_bh(&s_mac_hash.lock);
+	hslot = &s_mac_hash.slots[hkey & AUTH_MAC_HASH_MASK];
+	hlist_add_head(&mac->mac_node, hslot);
+	s_mac_hash.n_slot_mac[hkey & AUTH_MAC_HASH_MASK] ++;
+	spin_unlock_bh(&s_mac_hash.lock);
+	return mac;
+}
+
+
+int update_auth_mac_info(struct mac_info* host_mac,uint16_t n_mac)
+{
+	int i = 0, no_mem = 0;
+	struct mac_info_node **mac_info_nodes =NULL;
+
+	if (n_mac == 0) {
+//		clean_auth_mac_infos();//
+		auth_mac_clear();
+		goto OUT;
+	}
+	mac_info_nodes = AUTH_NEW_N(struct mac_info_node *, n_mac);
+	if (NULL == mac_info_nodes){
+		AUTH_ERROR("No Memory.");
+			no_mem = 1;
+			goto OUT;
+
+	}
+	memset(mac_info_nodes, 0, n_mac * sizeof(struct mac_info_node*));
+	for (i = 0; i < n_mac; i++) {
+		mac_info_nodes[i] = AUTH_NEW(struct mac_info_node);
+		if (mac_info_nodes[i] == NULL) {
+		AUTH_ERROR(" No memory.");
+		no_mem = 1;
+		goto OUT;
+		}	
+		INIT_LIST_HEAD(&mac_info_nodes[i]->mac_node);
+	}
+	//clean_auth_mac_infos();
+	auth_mac_clear();
+	for (i = 0; i < n_mac; i++) {
+		copy_auth_mac_info_to_node(mac_info_nodes[i], &host_mac[i]);
+		auth_mac_add(&mac_info_nodes[i]->mac_info);
+	}
+
+#if DEBUG_ENABLE
+	display_auth_mac_infos();
+#endif
+
+OUT:
+	if (no_mem) {
+		if (mac_info_nodes) {
+			for (i = 0; i < n_mac; i++) {
+				if (mac_info_nodes[i]) {
+					kfree(mac_info_nodes[i]);
+					mac_info_nodes[i] = NULL;
+				}
+			}
+			kfree(mac_info_nodes);
+			mac_info_nodes = NULL;
+		}
+	}
+
+	if (no_mem) {
+		return -1;
+	}
+	return 0;
+
+
+}
 
 
 int update_auth_host_info(struct auth_host_info* host_info, uint16_t n_host)
@@ -1326,20 +1557,58 @@ static void fetch_packet_info(struct sk_buff *skb, int *packet_type, struct url_
 
 
 
+/*int get_auth_usrmaclist(const unsigned char *mac)
+{
+
+	uint32_t existence = 0;
+	struct mac_info_node *mac_node = NULL;
+	struct list_head *cur = NULL, *next = NULL;
+	
+	if (list_empty(&s_auth_cfg.mac_list)) {
+#if DEBUG_ENABLE
+		AUTH_DEBUG("no mac white list.\n");
+#endif
+		goto OUT;
+	}
+	list_for_each_safe(cur, next, &s_auth_cfg.mac_list) {
+		mac_node = list_entry(cur, struct mac_info_node, mac_node);
+		if(memcmp(mac_node->mac_info.mac,mac,ETH_ALEN) == 0) {
+			existence = 1;
+			break;
+			}
+		
+	}
+OUT:
+	return existence;
+}
+
+*/
+
 /*First step,traversing auth rules until across a match rule or run over all rule.
  *Second step, i.e, last step, return the process code.*/
 int auth_rule_check(uint32_t ipv4, int *auth_type, struct sk_buff* skb)
 {
 	int i = 0, matched = 0, packet_type, auth_res = AUTH_RULE_PASS;	/*default process is pass*/
+
+		
+	struct ethhdr *eth_header = (struct ethhdr *)skb_mac_header(skb);/* mac*/
+	unsigned char usr_mac[ETH_ALEN];
+	memcpy(usr_mac,eth_header->h_source,ETH_ALEN);
+
 	struct list_head *cur = NULL;
 	struct auth_ip_rule_node *cur_node = NULL;
 	struct auth_ip_rule *ip_rule = NULL;
 	struct url_info url_info = {.uri = NULL, .host = NULL, .uri_len = 0, .host_len = 0};
 
 	*auth_type = UNKNOW_AUTH;
+
+	
+
+	
 	fetch_packet_info(skb, &packet_type, &url_info);
 
 	spin_lock_bh(&s_auth_cfg.lock);
+	
 	if (bypass_host(packet_type, &url_info) == HOST_BYPASS) {
 		goto OUT;
 	}
@@ -1408,6 +1677,13 @@ int auth_rule_check(uint32_t ipv4, int *auth_type, struct sk_buff* skb)
 		}
 		break;
 	}
+	
+	if ((*auth_type == WEB_AUTH) && auth_mac_get(usr_mac)){
+			auth_res = AUTH_RULE_PASS;
+		}
+
+	
+	
 OUT:
 	spin_unlock_bh(&s_auth_cfg.lock);
 #if DEBUG_ENABLE
@@ -1422,7 +1698,7 @@ OUT:
 #endif
 	return auth_res;
 }
-
+ 
 
 static void mutable_rule_watchdog_fn(unsigned long arg)
 {
@@ -1499,15 +1775,33 @@ void auth_cfg_disable(void)
 }
 
 
-int auth_rule_init()
+int clean_auth_mac_infos(void)
 {
+	spin_lock_bh(&s_mac_hash.lock);
+	auth_mac_clear();
+	spin_unlock_bh(&s_mac_hash.lock);
+	AUTH_INFO("auth_mac_fini success.\n");
+	return 0;
+}
+
+
+int auth_rule_init()
+{	
+	uint32_t idx = 0;
 	memset(&s_auth_cfg, 0, sizeof(struct auth_rule_config));
 	INIT_LIST_HEAD(&s_auth_cfg.rule_list);
 	INIT_LIST_HEAD(&s_auth_cfg.mutable_rule_list);
 	INIT_LIST_HEAD(&s_auth_cfg.if_list);
 	INIT_LIST_HEAD(&s_auth_cfg.url_list);
 	INIT_LIST_HEAD(&s_auth_cfg.host_list);
+//	INIT_LIST_HEAD(&s_auth_cfg.mac_list);
 	spin_lock_init(&s_auth_cfg.lock);
+	memset(&s_mac_hash, 0, sizeof(struct auth_mac_hash));
+		for (idx = 0; idx < AUTH_MAC_HASH_SIZE; idx++) {
+		INIT_HLIST_HEAD(&s_mac_hash.slots[idx]);
+	}
+	spin_lock_init(&s_mac_hash.lock);
+
 	OS_INIT_TIMER(&s_watchdog_tm, mutable_rule_watchdog_fn, NULL);
 	s_watchdog_intval_jf = msecs_to_jiffies(WATCHDOG_EXPIRED_INTVAL);	/*unit is millseconds*/
 	OS_SET_TIMER(&s_watchdog_tm, s_watchdog_intval_jf);
@@ -1524,6 +1818,8 @@ void auth_rule_fini(void)
 	clean_all_auth_rules();
 	clean_auth_if_infos();
 	clean_auth_url_infos();
+	clean_auth_mac_infos();
+	auth_mac_clear();
 	clean_auth_host_infos();
 	spin_unlock_bh(&s_auth_cfg.lock);
 }

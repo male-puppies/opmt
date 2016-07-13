@@ -132,6 +132,10 @@ static long auth_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned lo
 		case SIOCSAUTHHOSTS:
 			ret = do_set_auth_hostinfo(auth_arg);
 			break;
+		case SIOCSAUTHMAC:
+			ret = do_set_auth_hostmac(auth_arg);
+			break;
+			
 		default:
 			ret = -1;
 			break;

@@ -448,6 +448,9 @@ static unsigned int packet_process(struct sk_buff* skb, const struct net_device 
 		if (auth_type == AUTO_AUTH && check_ret == AUTH_RULE_PASS) {
 			update_auth_user_status(user, USER_ONLINE);
 		}
+		if (auth_type == WEB_AUTH && check_ret == AUTH_RULE_PASS) {
+			update_auth_user_status(user, USER_ONLINE);
+		}
 		if (pre_auth_type != auth_type && auth_type != UNKNOW_AUTH) {
 			update_auth_user_auth_type(user, auth_type);
 			AUTH_DEBUG("Sta(%pI4h) auth_type from %d to %d\n", &info.ipv4, pre_auth_type, auth_type);
@@ -461,6 +464,15 @@ static unsigned int packet_process(struct sk_buff* skb, const struct net_device 
 	}
 	else {
 		check_ret = auth_rule_check(info.ipv4, &auth_type, skb);
+		/*if newuser is maclist adduser and  pass*/
+		if(auth_type == WEB_AUTH && check_ret == AUTH_RULE_PASS){
+			user = auth_user_add(&info);
+				if (user == NULL) {
+					return NF_DROP;
+				}
+			update_auth_user_auth_type(user,auth_type);
+			update_auth_user_status(user,USER_ONLINE);
+		}
 		/*new web_auth user and auto auth user*/
 		if ((auth_type == WEB_AUTH && check_ret == AUTH_RULE_REDIRECT) || 
 			(auth_type == AUTO_AUTH && check_ret == AUTH_RULE_PASS)) {

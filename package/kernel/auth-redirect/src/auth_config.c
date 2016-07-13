@@ -10,7 +10,7 @@ static int auth_io_arg_check(struct auth_ioc_arg* arg, enum ARG_TYPE_E arg_type)
 	char arg_type_strs[ARG_TYPE_NUM][ARG_TYPE_STR_LEN] = 
 			{ {"AUTH_RULE"}, {"AUTH_OPTION"}, {"USER_GSTAT"},  
 			  {"USER_SSTAT"}, {"NET_IF_INFO"}, {"BYPASS_URL_INFO"},
-			  {"BYPASS_HOST_INFO"},{"INVALID_ARG_TYPE"}
+			  {"BYPASS_HOST_INFO"},{"BYPASS_HOST_MAC"},{"INVALID_ARG_TYPE"}
 			};
 	uint16_t len = 0, unit_len = 0;
 	if (arg->type != arg_type) {
@@ -73,6 +73,11 @@ static int auth_io_arg_check(struct auth_ioc_arg* arg, enum ARG_TYPE_E arg_type)
 			break;
 		}
 
+		case BYPASS_HOST_MAC:
+		{	/*head + body, arg->nmu == 0 means cleaning mac info*/
+			unit_len = sizeof(struct mac_info);
+			break;
+		}
 		default:
 		{
 			unit_len = 0;
@@ -178,4 +183,17 @@ int do_set_auth_hostinfo(struct auth_ioc_arg *arg)
 	}
 	data = (void*)arg + sizeof(struct auth_ioc_arg);
 	return update_auth_host_info((struct auth_host_info*)data, arg->num);
+}
+
+int do_set_auth_hostmac(struct auth_ioc_arg *arg)
+{
+	void *data = NULL;
+
+	if (auth_io_arg_check(arg,BYPASS_HOST_MAC) != 0) {
+		return -1;
+
+	}
+	data = (void*)arg + sizeof(struct auth_ioc_arg);
+	return update_auth_mac_info((struct mac_info*)data, arg->num);
+
 }

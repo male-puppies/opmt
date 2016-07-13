@@ -11,6 +11,7 @@
 #define SIOCSAUTHURLS       0X105   /*set bypass url*/
 #define SIOCSDEBUGOPTIONS	0x106	/*set debug options*/
 #define SIOCSAUTHHOSTS 		0x107 	/*set bypass host*/
+#define SIOCSAUTHMAC		0x108	/*set bypass mac*/
 
 #define	REDIRECT_URL_MAX		256
 #define REDIRECT_TITLE_MAX		128
@@ -87,6 +88,7 @@ enum ARG_TYPE_E {
 	NET_IF_INFO	= 4,
 	BYPASS_URL_INFO = 5,
 	BYPASS_HOST_INFO = 6,
+	BYPASS_HOST_MAC = 7,
 	/*add new type here*/
 	INVALID_ARG_TYPE,
 };
@@ -113,6 +115,11 @@ struct user_info {
 	//unsigned char reserved[2];
 };
 
+struct mac_info {
+	uint32_t status;		/*status = 1 -- whitelist; other*/
+	unsigned char mac[ETH_ALEN];
+	
+};
 
 struct user_stat_assist {
 	uint16_t more;		/*more user stat info*/
