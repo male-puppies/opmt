@@ -524,6 +524,7 @@ int update_auth_rules(struct ioc_auth_ip_rule *ip_rules, uint32_t n_rule)
 		kick_off_all_auth_auto_users();
 	}
 OUT:
+	
 	if (no_mem) {
 		if (ip_rule_nodes) {
 			for (i = 0; i < n_rule; i++) {
@@ -608,6 +609,7 @@ int update_auth_if_info(struct auth_if_info* if_info, uint16_t n_if)
 #endif
 
 OUT:
+
 	if (no_mem) {
 		if (if_info_nodes) {
 			for (i = 0; i < n_if; i++) {
@@ -619,6 +621,12 @@ OUT:
 			kfree(if_info_nodes);
 			if_info_nodes = NULL;
 		}
+	}
+	else {
+	if (!if_info_nodes){
+		kfree(if_info_nodes);
+		if_info_nodes = NULL;
+	}
 	}
 	spin_unlock_bh(&s_auth_cfg.lock);
 	auth_cfg_enable();
@@ -748,6 +756,7 @@ int update_auth_url_info(struct auth_url_info* url_info, uint16_t n_url)
 #endif
 
 OUT:
+	
 	if (no_mem) {
 		if (url_info_nodes) {
 			for (i = 0; i < n_url; i++) {
@@ -759,6 +768,13 @@ OUT:
 			kfree(url_info_nodes);
 			url_info_nodes = NULL;
 		}
+	}
+	else {
+		if (!url_info_nodes) {
+				kfree(url_info_nodes);
+				url_info_nodes = NULL;
+			}
+
 	}
 	spin_unlock_bh(&s_auth_cfg.lock);
 	auth_cfg_enable();
@@ -891,11 +907,11 @@ static void add_auth_host_info(struct host_info_node *host_info_node)
 	list_add_tail(&host_info_node->host_node, &s_auth_cfg.host_list);
 }
 
-static int copy_auth_mac_info_to_node(struct mac_info_node *mac_info_node, struct mac_info *mac_info)
+static int copy_auth_mac_info_to_node(struct mac_node *mac_info_node, struct mac_info *mac_info)
 {
-	INIT_LIST_HEAD(&mac_info_node->mac_node);
-	mac_info_node->mac_info.status = mac_info->status;
-	memcpy(mac_info_node->mac_info.mac, mac_info->mac, ETH_ALEN);
+	INIT_HLIST_NODE(&mac_info_node->mac_node);
+	mac_info_node->info.status = mac_info->status;
+	memcpy(mac_info_node->info.mac, mac_info->mac, ETH_ALEN);
 	return 0;
 }
 
@@ -942,49 +958,31 @@ struct  mac_node *auth_mac_get(const unsigned char *mac_infos)
 	return NULL;
 }
 
-static struct mac_node *mac_create(const struct mac_info *mac_info)
-{
-	struct mac_node *mac = NULL;
-	mac = AUTH_NEW(struct mac_node);
-	if (mac == NULL) {
-		AUTH_ERROR("create mac failed for no memory.\n");
-		return mac;
-	}
-	memset(mac, 0, sizeof(struct mac_node));
-	INIT_HLIST_NODE(&mac->mac_node);
-	mac->info.status = mac_info->status;
-	memcpy(mac->info.mac, mac_info->mac, ETH_ALEN);
-	AUTH_DEBUG("create a new mac node.");
-	return mac;
-}
 
-struct user_node *auth_mac_add(struct mac_info *mac_info)
+struct mac_node *auth_mac_add(struct mac_node *mac_info)
 {
 	uint32_t hkey = 0;
 	struct mac_node *mac = NULL;
 	struct hlist_head *hslot = NULL;
 
-	mac = auth_mac_get(mac_info->mac);
+	mac = auth_mac_get(mac_info->info.mac);
 	if (mac) {
 		AUTH_DEBUG("user[%02x:%02x:%02x:%02x:%02x:%02x] already existence.\n", 
-					mac_info->mac[0], mac_info->mac[1], mac_info->mac[2],
-					mac_info->mac[3], mac_info->mac[4], mac_info->mac[5]);
+					mac_info->info.mac[0], mac_info->info.mac[1], mac_info->info.mac[2],
+					mac_info->info.mac[3], mac_info->info.mac[4], mac_info->info.mac[5]);
 		return mac;
 	}
-	mac = mac_create(mac_info);
-	if (mac == NULL) {
-		return mac;
-	}
-	hkey = auth_user_mac_hash(mac->info.mac);
+
+	hkey = auth_user_mac_hash(mac_info->info.mac);
 	#if DEBUG_ENABLE
 	AUTH_DEBUG("[HKEY:%u;SLOT:%u;MAC:%02x:%02x:%02x:%02x:%02x:%02x].\n", 
 				hkey, (hkey & AUTH_MAC_HASH_MASK),
-				mac->info.mac[0],  mac->info.mac[1],  mac->info.mac[2],
-				mac->info.mac[3],  mac->info.mac[4],  mac->info.mac[5]);
+				mac_info->info.mac[0],  mac_info->info.mac[1],  mac_info->info.mac[2],
+				mac_info->info.mac[3],  mac_info->info.mac[4],  mac_info->info.mac[5]);
 	#endif
 	spin_lock_bh(&s_mac_hash.lock);
 	hslot = &s_mac_hash.slots[hkey & AUTH_MAC_HASH_MASK];
-	hlist_add_head(&mac->mac_node, hslot);
+	hlist_add_head(&mac_info->mac_node, hslot);
 	s_mac_hash.n_slot_mac[hkey & AUTH_MAC_HASH_MASK] ++;
 	spin_unlock_bh(&s_mac_hash.lock);
 	return mac;
@@ -994,35 +992,39 @@ struct user_node *auth_mac_add(struct mac_info *mac_info)
 int update_auth_mac_info(struct mac_info* host_mac,uint16_t n_mac)
 {
 	int i = 0, no_mem = 0;
-	struct mac_info_node **mac_info_nodes =NULL;
-
+	struct mac_node **mac_info_nodes =NULL;
+	struct mac_node *mac = NULL;
 	if (n_mac == 0) {
 //		clean_auth_mac_infos();//
 		auth_mac_clear();
 		goto OUT;
 	}
-	mac_info_nodes = AUTH_NEW_N(struct mac_info_node *, n_mac);
+	mac_info_nodes = AUTH_NEW_N(struct mac_node *, n_mac);
 	if (NULL == mac_info_nodes){
 		AUTH_ERROR("No Memory.");
 			no_mem = 1;
 			goto OUT;
 
 	}
-	memset(mac_info_nodes, 0, n_mac * sizeof(struct mac_info_node*));
+	memset(mac_info_nodes, 0, n_mac * sizeof(struct mac_node*));
 	for (i = 0; i < n_mac; i++) {
-		mac_info_nodes[i] = AUTH_NEW(struct mac_info_node);
+		mac_info_nodes[i] = AUTH_NEW(struct mac_node);
 		if (mac_info_nodes[i] == NULL) {
 		AUTH_ERROR(" No memory.");
 		no_mem = 1;
 		goto OUT;
 		}	
-		INIT_LIST_HEAD(&mac_info_nodes[i]->mac_node);
+		INIT_HLIST_NODE(&mac_info_nodes[i]->mac_node);
 	}
 	//clean_auth_mac_infos();
 	auth_mac_clear();
 	for (i = 0; i < n_mac; i++) {
 		copy_auth_mac_info_to_node(mac_info_nodes[i], &host_mac[i]);
-		auth_mac_add(&mac_info_nodes[i]->mac_info);
+		mac = auth_mac_add(mac_info_nodes[i]);
+		if (mac) {
+			kfree(mac_info_nodes[i]);
+			mac_info_nodes[i] = NULL;
+		}
 	}
 
 #if DEBUG_ENABLE
@@ -1042,13 +1044,17 @@ OUT:
 			mac_info_nodes = NULL;
 		}
 	}
+	else {
+		if (!mac_info_nodes) {
+			kfree(mac_info_nodes);
+			mac_info_nodes = NULL;
+		}
+	}
 
 	if (no_mem) {
 		return -1;
 	}
 	return 0;
-
-
 }
 
 
@@ -1095,6 +1101,7 @@ int update_auth_host_info(struct auth_host_info* host_info, uint16_t n_host)
 #endif
 
 OUT:
+
 	if (no_mem) {
 		if (host_info_nodes) {
 			for (i = 0; i < n_host; i++) {
@@ -1103,6 +1110,12 @@ OUT:
 					host_info_nodes[i] = NULL;
 				}
 			}
+			kfree(host_info_nodes);
+			host_info_nodes = NULL;
+		}
+	}
+	else {
+		if (!host_info_nodes) {
 			kfree(host_info_nodes);
 			host_info_nodes = NULL;
 		}

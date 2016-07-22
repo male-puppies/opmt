@@ -55,7 +55,7 @@ int flow_dir_check(const char *inname, const char *outname);
 int auth_url_check(struct url_info *url_info_t, uint8_t step);
 
 struct  mac_node *auth_mac_get(const unsigned char *mac_infos);
-struct user_node *auth_mac_add(struct mac_info *mac_info);
+struct mac_node *auth_mac_add(struct mac_node *mac_info);
 
 
 
