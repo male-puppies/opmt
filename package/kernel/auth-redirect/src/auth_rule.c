@@ -537,16 +537,11 @@ OUT:
 					ip_rule_nodes[i] = NULL;
 				}
 			}
-			kfree(ip_rule_nodes);
-			ip_rule_nodes = NULL;
 		}
 	}
-	else {
-		if (ip_rule_nodes) {
-			kfree(ip_rule_nodes);
-			ip_rule_nodes = NULL;
-		}
-	}
+
+	kfree(ip_rule_nodes);
+	ip_rule_nodes = NULL;
 	spin_unlock_bh(&s_auth_cfg.lock);
 	auth_cfg_enable();
 	if (no_mem) {
@@ -618,16 +613,11 @@ OUT:
 					if_info_nodes[i] = NULL;
 				}
 			}
-			kfree(if_info_nodes);
-			if_info_nodes = NULL;
 		}
 	}
-	else {
-	if (!if_info_nodes){
-		kfree(if_info_nodes);
-		if_info_nodes = NULL;
-	}
-	}
+
+	kfree(if_info_nodes);
+	if_info_nodes = NULL;
 	spin_unlock_bh(&s_auth_cfg.lock);
 	auth_cfg_enable();
 	if (no_mem) {
@@ -765,17 +755,11 @@ OUT:
 					url_info_nodes[i] = NULL;
 				}
 			}
-			kfree(url_info_nodes);
-			url_info_nodes = NULL;
 		}
 	}
-	else {
-		if (!url_info_nodes) {
-				kfree(url_info_nodes);
-				url_info_nodes = NULL;
-			}
 
-	}
+	kfree(url_info_nodes);
+	url_info_nodes = NULL;
 	spin_unlock_bh(&s_auth_cfg.lock);
 	auth_cfg_enable();
 	if (no_mem) {
@@ -1040,17 +1024,11 @@ OUT:
 					mac_info_nodes[i] = NULL;
 				}
 			}
-			kfree(mac_info_nodes);
-			mac_info_nodes = NULL;
-		}
-	}
-	else {
-		if (!mac_info_nodes) {
-			kfree(mac_info_nodes);
-			mac_info_nodes = NULL;
 		}
 	}
 
+	kfree(mac_info_nodes);
+	mac_info_nodes = NULL;
 	if (no_mem) {
 		return -1;
 	}
@@ -1114,12 +1092,9 @@ OUT:
 			host_info_nodes = NULL;
 		}
 	}
-	else {
-		if (!host_info_nodes) {
-			kfree(host_info_nodes);
-			host_info_nodes = NULL;
-		}
-	}
+
+	kfree(host_info_nodes);
+	host_info_nodes = NULL;
 	spin_unlock_bh(&s_auth_cfg.lock);
 	auth_cfg_enable();
 	if (no_mem) {
@@ -1568,34 +1543,6 @@ static void fetch_packet_info(struct sk_buff *skb, int *packet_type, struct url_
 	return;
 }
 
-
-
-/*int get_auth_usrmaclist(const unsigned char *mac)
-{
-
-	uint32_t existence = 0;
-	struct mac_info_node *mac_node = NULL;
-	struct list_head *cur = NULL, *next = NULL;
-	
-	if (list_empty(&s_auth_cfg.mac_list)) {
-#if DEBUG_ENABLE
-		AUTH_DEBUG("no mac white list.\n");
-#endif
-		goto OUT;
-	}
-	list_for_each_safe(cur, next, &s_auth_cfg.mac_list) {
-		mac_node = list_entry(cur, struct mac_info_node, mac_node);
-		if(memcmp(mac_node->mac_info.mac,mac,ETH_ALEN) == 0) {
-			existence = 1;
-			break;
-			}
-		
-	}
-OUT:
-	return existence;
-}
-
-*/
 
 /*First step,traversing auth rules until across a match rule or run over all rule.
  *Second step, i.e, last step, return the process code.*/
