@@ -1088,8 +1088,7 @@ OUT:
 					host_info_nodes[i] = NULL;
 				}
 			}
-			kfree(host_info_nodes);
-			host_info_nodes = NULL;
+
 		}
 	}
 
