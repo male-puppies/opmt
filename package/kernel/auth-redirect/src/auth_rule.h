@@ -11,7 +11,6 @@ enum AUTH_RULE_CHECK_RES_CODE_E {
 	AUTH_RULE_PASS  = 0,
 	AUTH_RULE_REDIRECT = 1,
 	AUTH_RULE_REJECT = 2,
-	AUTH_URL_PASS = 3,
 };
 
 /*JUST CHECK LAN-->WAN FLOW*/
@@ -54,8 +53,6 @@ int update_auth_mac_info(struct mac_info* hsot_mac, uint16_t n_mac);
 int auth_rule_check(uint32_t ipv4, int *auth_type, struct sk_buff* skb);
 int flow_dir_check(const char *inname, const char *outname);
 int auth_url_check(struct url_info *url_info_t, uint8_t step);
-int auth_referer_check(struct referer_info *referer_info);
-int auth_host_check(struct url_info *url_info_t);
 
 struct  mac_node *auth_mac_get(const unsigned char *mac_infos);
 struct mac_node *auth_mac_add(struct mac_node *mac_info);
