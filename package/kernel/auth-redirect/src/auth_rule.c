@@ -1,6 +1,7 @@
 #include "auth_comm.h"
 #include "auth_ioc.h"
 #include "auth_rule.h"
+#include "auth_url.h"
 #include "auth_user.h"
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -10,6 +11,7 @@
 #include <uapi/linux/if_ether.h>
 #include <uapi/linux/ip.h>
 #include <linux/ip.h>
+#include <linux/tcp.h>
 #include <uapi/linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/icmp.h>
@@ -524,7 +526,6 @@ int update_auth_rules(struct ioc_auth_ip_rule *ip_rules, uint32_t n_rule)
 		kick_off_all_auth_auto_users();
 	}
 OUT:
-	
 	if (no_mem) {
 		if (ip_rule_nodes) {
 			for (i = 0; i < n_rule; i++) {
@@ -539,9 +540,8 @@ OUT:
 			}
 		}
 	}
-
-	kfree(ip_rule_nodes);
-	ip_rule_nodes = NULL;
+			kfree(ip_rule_nodes);
+			ip_rule_nodes = NULL;
 	spin_unlock_bh(&s_auth_cfg.lock);
 	auth_cfg_enable();
 	if (no_mem) {
@@ -604,7 +604,6 @@ int update_auth_if_info(struct auth_if_info* if_info, uint16_t n_if)
 #endif
 
 OUT:
-
 	if (no_mem) {
 		if (if_info_nodes) {
 			for (i = 0; i < n_if; i++) {
@@ -615,9 +614,8 @@ OUT:
 			}
 		}
 	}
-
-	kfree(if_info_nodes);
-	if_info_nodes = NULL;
+		kfree(if_info_nodes);
+		if_info_nodes = NULL;
 	spin_unlock_bh(&s_auth_cfg.lock);
 	auth_cfg_enable();
 	if (no_mem) {
@@ -746,7 +744,6 @@ int update_auth_url_info(struct auth_url_info* url_info, uint16_t n_url)
 #endif
 
 OUT:
-	
 	if (no_mem) {
 		if (url_info_nodes) {
 			for (i = 0; i < n_url; i++) {
@@ -757,9 +754,8 @@ OUT:
 			}
 		}
 	}
-
-	kfree(url_info_nodes);
-	url_info_nodes = NULL;
+				kfree(url_info_nodes);
+				url_info_nodes = NULL;
 	spin_unlock_bh(&s_auth_cfg.lock);
 	auth_cfg_enable();
 	if (no_mem) {
@@ -1026,7 +1022,6 @@ OUT:
 			}
 		}
 	}
-
 	kfree(mac_info_nodes);
 	mac_info_nodes = NULL;
 	if (no_mem) {
@@ -1088,12 +1083,10 @@ OUT:
 					host_info_nodes[i] = NULL;
 				}
 			}
-
 		}
 	}
-
-	kfree(host_info_nodes);
-	host_info_nodes = NULL;
+			kfree(host_info_nodes);
+			host_info_nodes = NULL;
 	spin_unlock_bh(&s_auth_cfg.lock);
 	auth_cfg_enable();
 	if (no_mem) {
@@ -1458,6 +1451,36 @@ static int bypass_url(int packet_type, struct url_info *url_info, uint8_t step)
 	return URL_UNBYPASS;
 }
 
+int auth_referer_check(struct referer_info *referer_info)
+{
+	struct list_head *cur = NULL;
+	struct host_info_node *cur_node = NULL;
+	struct auth_host_info *host_info = NULL;
+	int check_res = HOST_UNBYPASS;
+
+	
+	if (NULL == referer_info->referer) {
+		goto OUT;
+	}
+	
+	if (list_empty(&s_auth_cfg.host_list)) {
+		printk(" ERROR HOST --WHITEURL-- IS EMPTT!!!\n");
+		check_res = HOST_UNBYPASS;
+		goto OUT;
+	}
+	list_for_each(cur, &s_auth_cfg.host_list) {
+		cur_node = list_entry(cur, struct host_info_node, host_node);
+		host_info = &cur_node->host_info;
+		//printk("BYPASS_REFERER** CHECK-- HOST_INFO_: --[ %s ]--. TARGETHOST: [ %c%c%c%c%c%c%c%c%c%c ].\n",host_info->host,referer_info->referer[0],referer_info->referer[1],referer_info->referer[2],referer_info->referer[3],referer_info->referer[4],referer_info->referer[5],referer_info->referer[6],referer_info->referer[7],referer_info->referer[8],referer_info->referer[9],referer_info->referer[10],referer_info->referer[11]);
+		if (match_host(host_info->host, host_info->host_len, referer_info->referer, referer_info->referer_len) == HOST_MATCH) {
+			check_res = HOST_BYPASS;
+			break;
+		}
+	}
+	
+OUT:
+		return check_res;
+}
 
 int auth_host_check(struct url_info *url_info_t)
 {
@@ -1467,6 +1490,7 @@ int auth_host_check(struct url_info *url_info_t)
 	int check_res = HOST_UNBYPASS;
 
 	if (list_empty(&s_auth_cfg.host_list)) {
+		printk(" ERROR HOST --WHITEURL-- IS EMPTT!!!\n");
 		check_res =  HOST_UNBYPASS;
 		goto OUT;
 	}
@@ -1484,7 +1508,7 @@ OUT:
 }
 
 
-static int bypass_host(int packet_type, struct url_info *url_info) 
+static int bypass_host(int packet_type, struct url_info *url_info, struct referer_info *referer_info) 
 {
 	if (packet_type == RAW_TCP) {
 		return HOST_UNBYPASS;
@@ -1493,7 +1517,7 @@ static int bypass_host(int packet_type, struct url_info *url_info)
 	if ((packet_type & HTTP_POST) || (packet_type & HTTP_GET)) {
 		/*uri_len长度可以为0*/
 		if (url_info->host_len > 0 && url_info->uri_len >= 0) {
-			if (auth_host_check(url_info) == HOST_BYPASS) {
+			if (auth_host_check(url_info) == HOST_BYPASS || auth_referer_check(referer_info)) {
 				return HOST_BYPASS;
 			}
 			return HOST_UNBYPASS;
@@ -1507,8 +1531,24 @@ static int bypass_host(int packet_type, struct url_info *url_info)
 
 }
 
+static void fetch_packet_link_info(struct sk_buff *skb, struct link_info *link_info)
+{
+	struct tcphdr *tcph = NULL;
+	struct iphdr *iph = NULL;
+	tcph = tcp_hdr(skb);
+	iph = ip_hdr(skb);
+	
+	if (iph->protocol == IPPROTO_TCP) {
+		link_info->protonum = RAW_TCP;
+	
+	link_info->src.ip = ntohl(iph->saddr);
+	link_info->dst.ip = ntohl(iph->daddr);
+	link_info->src.port = ntohs(tcph->source);
+	link_info->dst.port = ntohs(tcph->dest);
+	}
+}
 
-static void fetch_packet_info(struct sk_buff *skb, int *packet_type, struct url_info *url_info) 
+static void fetch_packet_info(struct sk_buff *skb, int *packet_type, struct url_info *url_info, struct referer_info *referer_info) 
 {
 	struct tcphdr *tcph = NULL;
 	int tcphdr_len = 0, tcpdata_len = 0;
@@ -1529,13 +1569,13 @@ static void fetch_packet_info(struct sk_buff *skb, int *packet_type, struct url_
 
 	if (is_post_packet(skb)) {
 		*packet_type |= HTTP_POST;
-		http_post_data_parse(tcp_data, tcpdata_len, url_info);
+		http_post_data_parse(tcp_data, tcpdata_len, url_info, referer_info);
 		return;
 	}
 
 	if (is_get_packet(skb)) {
 		*packet_type |= HTTP_GET;
-		http_get_data_parse(tcp_data, tcpdata_len, url_info);
+		http_get_data_parse(tcp_data, tcpdata_len, url_info, referer_info);
 		return;
 	}
 	
@@ -1543,35 +1583,47 @@ static void fetch_packet_info(struct sk_buff *skb, int *packet_type, struct url_
 }
 
 
+
 /*First step,traversing auth rules until across a match rule or run over all rule.
  *Second step, i.e, last step, return the process code.*/
 int auth_rule_check(uint32_t ipv4, int *auth_type, struct sk_buff* skb)
 {
 	int i = 0, matched = 0, packet_type, auth_res = AUTH_RULE_PASS;	/*default process is pass*/
-
 		
 	struct ethhdr *eth_header = (struct ethhdr *)skb_mac_header(skb);/* mac*/
 	unsigned char usr_mac[ETH_ALEN];
 	memcpy(usr_mac,eth_header->h_source,ETH_ALEN);
 
+	struct link_node *link = NULL;
 	struct list_head *cur = NULL;
 	struct auth_ip_rule_node *cur_node = NULL;
 	struct auth_ip_rule *ip_rule = NULL;
 	struct url_info url_info = {.uri = NULL, .host = NULL, .uri_len = 0, .host_len = 0};
-
+	struct referer_info referer_info = {.referer = NULL, .referer_len = 0};
+	struct link_info link_info = {.src.port = 0, .src.ip = 0, .dst.port = 0, .dst.ip = 0, .jf = 0, .protonum = 0};
+	
 	*auth_type = UNKNOW_AUTH;
 
-	
-
-	
-	fetch_packet_info(skb, &packet_type, &url_info);
-
+	fetch_packet_info(skb, &packet_type, &url_info, &referer_info);
+	fetch_packet_link_info(skb, &link_info);
+	link = auth_link_get(&link_info);
+//		printk(" ############link####-info src.ip: %pI4.+++ dst.ip: %pI4\n", &link_info.src.ip, &link_info.dst.ip);
+	if (link) {
+		update_auth_link_active_tm(link);
+		auth_res = AUTH_URL_PASS;
+		return auth_res;
+	}
 	spin_lock_bh(&s_auth_cfg.lock);
 	
-	if (bypass_host(packet_type, &url_info) == HOST_BYPASS) {
+	if (bypass_host(packet_type, &url_info, &referer_info) == HOST_BYPASS) {
+		link = auth_link_add(&link_info);
+		if (NULL == link) {
+			AUTH_DEBUG("link add error.\n");
+		}
+		printk("link_add. link-info src.ip: %pI4.+++ dst.ip: %pI4\n", &link_info.src.ip, &link_info.dst.ip);
+		auth_res = AUTH_URL_PASS;
 		goto OUT;
 	}
-
 	if (!list_empty(&s_auth_cfg.mutable_rule_list)) {
 		list_for_each(cur, &s_auth_cfg.mutable_rule_list) {
 			cur_node = list_entry(cur, struct auth_ip_rule_node, rule_node);
