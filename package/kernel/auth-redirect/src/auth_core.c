@@ -31,6 +31,7 @@
 #include "auth_cdev.h"
 #include "auth_user.h"
 #include "auth_rule.h"
+#include "auth_url.h"
 #include "auth_checksum.h"
 #include "http_url_parse.h"
 #include "slre.h"
@@ -453,7 +454,6 @@ static unsigned int packet_process(struct sk_buff* skb, const struct net_device 
 		}
 		if (pre_auth_type != auth_type && auth_type != UNKNOW_AUTH) {
 			update_auth_user_auth_type(user, auth_type);
-			AUTH_DEBUG("Sta(%pI4h) auth_type from %d to %d\n", &info.ipv4, pre_auth_type, auth_type);
 		}
 		//user->info.auth_type = type;
 		if(is_wechat_scan(skb)==1){
@@ -464,8 +464,13 @@ static unsigned int packet_process(struct sk_buff* skb, const struct net_device 
 	}
 	else {
 		check_ret = auth_rule_check(info.ipv4, &auth_type, skb);
+		/*if the packet is url maclist nf_accept ---AUTH_URL_PASS*/
+		if (check_ret == AUTH_URL_PASS) {
+			return NF_ACCEPT;
+		}
+		
 		/*if newuser is maclist adduser and  pass*/
-		if(auth_type == WEB_AUTH && check_ret == AUTH_RULE_PASS){
+		if(auth_type == WEB_AUTH && check_ret == AUTH_RULE_PASS) {
 			user = auth_user_add(&info);
 				if (user == NULL) {
 					return NF_DROP;
@@ -837,6 +842,8 @@ static unsigned auth_wechat_pre_in_hook(unsigned int hooknum,
 	struct nf_conn *ct;
 	struct iphdr *iph;
 	struct tcphdr *tcph;
+	struct referer_info *referer_info;
+
 
 	iph = ip_hdr(skb);
 
@@ -858,7 +865,7 @@ static unsigned auth_wechat_pre_in_hook(unsigned int hooknum,
 
 	if (data_len > 0 && strncasecmp(data, "GET ", 4) == 0)
 	{
-		http_get_data_parse(data, data_len, &url_info);
+		http_get_data_parse(data, data_len, &url_info, &referer_info);
 		if (url_info.host_len > 0 && url_info.uri_len > 0)
 		{	
 			if (strncmp(url_info.host, "open.weixin.qq.com", strlen("open.weixin.qq.com")) == 0 && is_wx_finish_packet(skb) == 1)
@@ -934,6 +941,11 @@ static int __init auth_init(void)
 	if (ret != 0) {
 		return ret;
 	}
+
+	ret = auth_link_init();
+	if (ret != 0) {
+		return ret;
+	}
 	
 	ret = auth_user_init();
 	if (ret != 0) {
@@ -960,6 +972,7 @@ static void __exit auth_fini(void)
 {
 	nf_unregister_hooks(redirect_nf_hook_ops, ARRAY_SIZE(redirect_nf_hook_ops));
 	auth_rule_fini();
+	auth_link_fini();
 	auth_user_fini();
 	dev_fini();
 	AUTH_INFO("auth_fini success.\n");
