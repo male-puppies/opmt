@@ -15,10 +15,13 @@
 
 #define	REDIRECT_URL_MAX		256
 #define REDIRECT_TITLE_MAX		128
-#define IF_NAME_MAX				32	
+#define IF_NAME_MAX				32
 #define BYPASS_URI_LEN 	64
 #define BYPASS_HOST_LEN 64
 #define ETH_ALEN				6
+
+#define MAC_WHITE		1
+#define MAC_BLACK		0
 
 #define IP_RULE_TYPE_NUM	3
 #define IP_RULE_TYPE_STR_LEN 8
@@ -75,7 +78,7 @@ struct ioc_auth_ip_rule {
 /*auth options*/
 struct auth_options {
 	uint32_t	user_check_intval;	/*unit: seconds*/
-	char 		redirect_url[REDIRECT_URL_MAX];	
+	char 		redirect_url[REDIRECT_URL_MAX];
 	char		redirect_title[REDIRECT_TITLE_MAX];
 	uint32_t    bypass_enable;
 };
@@ -118,7 +121,6 @@ struct user_info {
 struct mac_info {
 	uint32_t status;		/*status = 1 -- whitelist; other*/
 	unsigned char mac[ETH_ALEN];
-	
 };
 
 struct user_stat_assist {

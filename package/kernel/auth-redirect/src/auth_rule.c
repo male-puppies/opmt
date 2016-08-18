@@ -942,15 +942,28 @@ struct  mac_node *auth_mac_get(const unsigned char *mac_infos)
 struct mac_node *auth_mac_add(struct mac_node *mac_info)
 {
 	uint32_t hkey = 0;
+	struct user_node *user = NULL;
 	struct mac_node *mac = NULL;
 	struct hlist_head *hslot = NULL;
 
+	if (mac_info->info.status == MAC_BLACK) {
+		user = auth_user_get(mac_info->info.mac);
+		if (user && user->info.status) {
+			update_auth_user_status(user, USER_OFFLINE);
+		}
+	}
+
 	mac = auth_mac_get(mac_info->info.mac);
 	if (mac) {
-		AUTH_DEBUG("user[%02x:%02x:%02x:%02x:%02x:%02x] already existence.\n", 
-					mac_info->info.mac[0], mac_info->info.mac[1], mac_info->info.mac[2],
-					mac_info->info.mac[3], mac_info->info.mac[4], mac_info->info.mac[5]);
-		return mac;
+
+		if (mac->info.status == mac_info->info.status) {
+			AUTH_DEBUG("user[%02x:%02x:%02x:%02x:%02x:%02x] already existence.\n",
+						mac_info->info.mac[0], mac_info->info.mac[1], mac_info->info.mac[2],
+						mac_info->info.mac[3], mac_info->info.mac[4], mac_info->info.mac[5]);
+			return mac;
+		}
+	mac->info.status = mac_info->info.status;
+	return mac;
 	}
 
 	hkey = auth_user_mac_hash(mac_info->info.mac);
@@ -1595,6 +1608,7 @@ int auth_rule_check(uint32_t ipv4, int *auth_type, struct sk_buff* skb)
 	unsigned char usr_mac[ETH_ALEN];
 	memcpy(usr_mac,eth_header->h_source,ETH_ALEN);
 
+	struct mac_node *mac_node = NULL;
 	struct link_node *link = NULL;
 	struct list_head *cur = NULL;
 	struct auth_ip_rule_node *cur_node = NULL;
@@ -1605,6 +1619,10 @@ int auth_rule_check(uint32_t ipv4, int *auth_type, struct sk_buff* skb)
 	
 	*auth_type = UNKNOW_AUTH;
 
+	mac_node = auth_mac_get(usr_mac);
+	if (mac_node && (mac_node->info.status == MAC_BLACK)) {
+			return AUTH_RULE_REJECT;
+		}
 	fetch_packet_info(skb, &packet_type, &url_info, &referer_info);
 	fetch_packet_link_info(skb, &link_info);
 	link = auth_link_get(&link_info);
@@ -1689,13 +1707,13 @@ int auth_rule_check(uint32_t ipv4, int *auth_type, struct sk_buff* skb)
 		}
 		break;
 	}
-	
-	if ((*auth_type == WEB_AUTH) && auth_mac_get(usr_mac)){
+
+	if ((*auth_type == WEB_AUTH) && mac_node) {
+		 	if (mac_node->info.status == MAC_WHITE) {
 			auth_res = AUTH_RULE_PASS;
 		}
+	}
 
-	
-	
 OUT:
 	spin_unlock_bh(&s_auth_cfg.lock);
 #if DEBUG_ENABLE

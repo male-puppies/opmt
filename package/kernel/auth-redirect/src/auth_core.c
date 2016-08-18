@@ -407,7 +407,8 @@ static unsigned int packet_process(struct sk_buff* skb, const struct net_device 
 {
 	int check_ret = 0, auth_type = UNKNOW_AUTH, pre_auth_type = UNKNOW_AUTH;
 	struct user_info info;
-	struct user_node *user; 
+	struct user_node *user;
+	struct mac_node *mac_node;
 	struct ethhdr *eth_header = (struct ethhdr *)skb_mac_header(skb);
 	struct iphdr *ip_header = (struct iphdr *)skb_network_header(skb);
 	if (in == NULL || out == NULL) {
@@ -431,6 +432,10 @@ static unsigned int packet_process(struct sk_buff* skb, const struct net_device 
 		if (auth_user_status(user) == USER_ONLINE) {
 			update_auth_user_active_tm(user);
 			return NF_ACCEPT;
+		}
+		mac_node = auth_mac_get(info.mac);
+		if (mac_node && (mac_node->info.status == MAC_BLACK)) {
+			return AUTH_RULE_REJECT;
 		}
 		/*status changing from online to offline, need recheck auth rules.*/
 		pre_auth_type = get_auth_user_auth_type(user);
