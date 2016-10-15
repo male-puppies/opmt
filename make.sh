@@ -32,7 +32,9 @@ echo -n ${BINMD5}${RANDMD5} | md5sum | awk '{print $1}' >  bin/ramips/AC/bin_ran
 cd  bin/ramips/AC/
 tar -zcf $DIST-$VERSION".tar.gz" UploadBrush-bin.img bin_random.txt
 rm UploadBrush-bin.img bin_random.txt
-mv $DIST-$VERSION".tar.gz" $DIST-$VERSION
+mv $DIST-$VERSION".tar.gz" $DIST-$VERSION-tmp
+openssl aes-256-cbc -salt -in $DIST-$VERSION-tmp -out $DIST-$VERSION -k QiLunSmartWL
+rm $DIST-$VERSION-tmp
 cd -
 
 done
