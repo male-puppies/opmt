@@ -103,6 +103,9 @@ ramips_board_detect() {
 	*"Openwrt puppies")
 		name="puppies"
 		;;
+        *"Openwrt Nxc200p")
+                name="nxc200p"
+                ;;
 	*"CY-SWR1100")
 		name="cy-swr1100"
 		;;

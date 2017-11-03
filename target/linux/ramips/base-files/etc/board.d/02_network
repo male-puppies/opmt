@@ -152,7 +152,8 @@ ramips_setup_interfaces()
 		ucidef_add_switch_vlan "switch0" "5" "4 6t"
 		;;
 
-	puppies)
+	puppies | \
+	nxc200p)
 		ucidef_set_interface_lan "eth0"
 		ucidef_add_switch "switch0" "1" "0"
 		;;
@@ -394,7 +395,7 @@ ramips_setup_macs()
 
 	esac
 
-	if [ x$board = "xpuppies" ]; then
+	if [[ x$board = "xpuppies" || x$board = "xnxc200p" ]]; then
 		[ -n "$lan_mac" ] && ucidef_set_interface_macaddr lan0 $lan_mac
 		return 0
 	fi

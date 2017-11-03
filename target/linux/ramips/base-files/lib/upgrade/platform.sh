@@ -55,6 +55,7 @@ platform_check_image() {
 	freestation5 | \
 	firewrt |\
 	puppies |\
+	nxc200p|\
 	pbr-m1 |\
 	hg255d | \
 	hlk-rm04 | \

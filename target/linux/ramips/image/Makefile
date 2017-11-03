@@ -926,7 +926,7 @@ endif
 #
 
 ifeq ($(SUBTARGET),mt7621)
-  TARGET_DEVICES += mt7621 wsr-600 wsr-1166 dir-860l-b1 firewrt puppies pbr-m1 re6500 sap-g3200u3
+  TARGET_DEVICES += mt7621 wsr-600 wsr-1166 dir-860l-b1 firewrt puppies nxc200p pbr-m1 re6500 sap-g3200u3
 endif
 
 define Device/mt7621
@@ -969,6 +969,11 @@ endef
 
 define Device/puppies
   DTS := PUPPIES
+  IMAGE_SIZE := $(ralink_default_fw_size_16M)
+endef
+
+define Device/puppies
+  DTS := NXC200P
   IMAGE_SIZE := $(ralink_default_fw_size_16M)
 endef
 
