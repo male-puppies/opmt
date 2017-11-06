@@ -972,7 +972,7 @@ define Device/puppies
   IMAGE_SIZE := $(ralink_default_fw_size_16M)
 endef
 
-define Device/puppies
+define Device/nxc200p
   DTS := NXC200P
   IMAGE_SIZE := $(ralink_default_fw_size_16M)
 endef

@@ -20,10 +20,10 @@ test $? -eq 0 || exit 1
 DIST=`cat .config | grep CONFIG_VERSION_DIST | awk -F\" '{print $2}'`
 VERSION=`cat .config | grep CONFIG_VERSION_NUMBER | awk -F\" '{print $2}'`
 
-ls bin/ramips/*.bin | grep -v puppies | xargs rm >/dev/null 2>&1
+ls bin/ramips/*.bin | grep -v nxc200p | xargs rm >/dev/null 2>&1
 mkdir -p bin/ramips/BY
-echo mv bin/ramips/*$VERSION*puppies*bin bin/ramips/BY/UploadBrush-bin.img
-mv bin/ramips/*$VERSION*puppies*bin bin/ramips/BY/UploadBrush-bin.img
+echo mv bin/ramips/*$VERSION*nxc200p*bin bin/ramips/BY/UploadBrush-bin.img
+mv bin/ramips/*$VERSION*nxc200p*bin bin/ramips/BY/UploadBrush-bin.img
 
 BINMD5=`md5sum bin/ramips/BY/UploadBrush-bin.img | awk '{print $1}'`
 BINRANDOM=${board}${bin_random}

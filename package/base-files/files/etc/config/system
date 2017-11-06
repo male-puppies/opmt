@@ -1,5 +1,5 @@
 config system
-	option hostname WX100
+	option hostname TWS200
 	option timezone CST-8
 	option zonename Asia/Shanghai
 	option cronloglevel 8
@@ -12,3 +12,9 @@ config timeserver ntp
 	list server 's2k.time.edu.cn'
 	list server 's2m.time.edu.cn'
 	list server 's1a.time.edu.cn'
+
+config led
+	option sysfs 'nxc200p:green:sys'
+	option trigger 'timer'
+	option delayon '500'
+	option delayiff '500'
