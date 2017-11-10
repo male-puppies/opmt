@@ -5,4 +5,4 @@ cat << EOF
 Pandapo
 EOF
 
-exec /bin/ash --login
+exec /bin/login
