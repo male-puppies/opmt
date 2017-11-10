@@ -1,0 +1,11 @@
+#!/bin/sh
+
+if [ -f "$factory_test_flag_ip" ]
+then
+	killall -9 telnetd
+	telnetd -l /bin/ash &
+else
+	killall -9 telnetd
+	telnetd -l /usr/sbin/telnet_passwd.sh
+fi
+

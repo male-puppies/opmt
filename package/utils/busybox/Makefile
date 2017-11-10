@@ -113,6 +113,8 @@ define Package/busybox/install
 	$(INSTALL_BIN) ./files/telnet $(1)/etc/init.d/telnet
 	$(INSTALL_BIN) ./files/sysntpd $(1)/etc/init.d/sysntpd
 	$(INSTALL_BIN) ./files/ntpd-hotplug $(1)/usr/sbin/ntpd-hotplug
+	$(INSTALL_BIN) ./files/telnet_mgr $(1)/usr/sbin/telnet_mgr
+	$(INSTALL_BIN) ./files/telnet_passwd.sh $(1)/usr/sbin/telnet_passwd.sh
 	-rm -rf $(1)/lib64
 endef
 
